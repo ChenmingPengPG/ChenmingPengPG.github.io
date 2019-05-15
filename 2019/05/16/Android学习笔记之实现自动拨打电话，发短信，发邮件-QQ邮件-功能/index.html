@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2">
+
+<link rel="stylesheet" href="/css/main.css?v=7.1.1">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.1.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=7.1.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.1.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.1.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '7.1.1',
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false,"dimmer":false},
+    back2top: true,
+    back2top_sidebar: false,
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能拨打电话java源文件中添加 12Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse(&quot;tel:5554&quot;));                startActivity(intent);  manifest中加入 1&amp;lt;uses-permission andr">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能">
+<meta property="og:url" content="http://yoursite.com/2019/05/16/Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能/index.html">
+<meta property="og:site_name" content="Everthing will be OK!">
+<meta property="og:description" content="Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能拨打电话java源文件中添加 12Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse(&quot;tel:5554&quot;));                startActivity(intent);  manifest中加入 1&amp;lt;uses-permission andr">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-05-15T17:12:14.186Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能">
+<meta name="twitter:description" content="Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能拨打电话java源文件中添加 12Intent intent = new Intent(Intent.ACTION_CALL, Uri.parse(&quot;tel:5554&quot;));                startActivity(intent);  manifest中加入 1&amp;lt;uses-permission andr">
+
+
+
+
+
+  
+  
+  <link rel="canonical" href="http://yoursite.com/2019/05/16/Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能/">
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能 | Everthing will be OK!</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Everthing will be OK!</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+      
+        <p class="site-subtitle">可以毕业但没必要--来自没有offer的pcm</p>
+      
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能
+
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:11:45 / 修改时间：01:12:14" itemprop="dateCreated datePublished" datetime="2019-05-16T01:11:45+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能"><a href="#Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能" class="headerlink" title="Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能"></a>Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能</h1><h3 id="拨打电话"><a href="#拨打电话" class="headerlink" title="拨打电话"></a>拨打电话</h3><p>java源文件中添加</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent(Intent.ACTION_CALL, Uri.parse(<span class="string">"tel:5554"</span>));</span><br><span class="line">                startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p>manifest中加入</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;uses-permission android:name="android.permission.CALL_PHONE"&gt;&lt;/uses-permission&gt;</span><br></pre></td></tr></table></figure>
+
+<p>测试时注意android系统是否允许了权限，否则可能会报错</p>
+<h3 id="发短信"><a href="#发短信" class="headerlink" title="发短信"></a>发短信</h3><p>java源文件中添加</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">String message = <span class="string">"test scos helper"</span>;</span><br><span class="line">SmsManager sms = SmsManager.getDefault();</span><br><span class="line">sms.sendTextMessage(<span class="string">"5554"</span>, <span class="keyword">null</span>, message, <span class="keyword">null</span>, <span class="keyword">null</span>);</span><br><span class="line">Toast.makeText(<span class="keyword">this</span>,<span class="string">"求助短信发送成功"</span>,Toast.LENGTH_SHORT).show();</span><br><span class="line"><span class="comment">/*Intent sentIntent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:5554"));</span></span><br><span class="line"><span class="comment">sentIntent.putExtra("sms_body", message);</span></span><br><span class="line"><span class="comment">startActivity(sentIntent); //这个方式需要手动确认发送</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+
+<p>manifest中加入</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;uses-permission android:name="android.permission.SEND_SMS"&gt;&lt;/uses-permission&gt;</span><br></pre></td></tr></table></figure>
+
+<p>测试时注意android系统是否允许了权限，否则可能会报错</p>
+<h3 id="发邮件"><a href="#发邮件" class="headerlink" title="发邮件"></a>发邮件</h3><p>这里我才用了javax.mail包</p>
+<p>需要自行下载相关jar包</p>
+<p>gradle下添加</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">dependencies &#123;</span><br><span class="line">    implementation 'com.sun.mail:android-mail:<span class="number">1</span>.<span class="number">6</span>.<span class="number">0</span>'</span><br><span class="line">    implementation 'com.sun.mail:android-activation:<span class="number">1</span>.<span class="number">6</span>.<span class="number">0</span>'</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再Sync也行</p>
+<p>MailSender, （用了好几个内部类，毕竟只是为了实现发一个test邮件功能）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> javax.mail.Authenticator;</span><br><span class="line"><span class="keyword">import</span> javax.mail.MessagingException;</span><br><span class="line"><span class="keyword">import</span> javax.mail.PasswordAuthentication;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.Date;</span><br><span class="line"><span class="keyword">import</span> java.util.Properties;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.mail.Address;</span><br><span class="line"><span class="keyword">import</span> javax.mail.Message;</span><br><span class="line"><span class="keyword">import</span> javax.mail.Session;</span><br><span class="line"><span class="keyword">import</span> javax.mail.Transport;</span><br><span class="line"><span class="keyword">import</span> javax.mail.internet.InternetAddress;</span><br><span class="line"><span class="keyword">import</span> javax.mail.internet.MimeMessage;</span><br><span class="line"><span class="keyword">import</span> javax.mail.internet.AddressException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MailSender</span> </span>&#123;</span><br><span class="line">    MailSenderInfo mailSenderInfo = <span class="keyword">new</span> MailSenderInfo();</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">run</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.sendTextMail(mailSenderInfo);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">sendTextMail</span><span class="params">(<span class="keyword">final</span> MailSenderInfo mailInfo)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 判断是否需要身份认证</span></span><br><span class="line">        MyAuthenticator authenticator = <span class="keyword">null</span>;</span><br><span class="line">        Properties pro = mailInfo.getProperties();</span><br><span class="line">        <span class="keyword">if</span> (mailInfo.isValidate()) &#123;</span><br><span class="line">            <span class="comment">// 如果需要身份认证，则创建一个密码验证器</span></span><br><span class="line">            authenticator = <span class="keyword">new</span> MyAuthenticator(mailInfo.getUserName(), mailInfo.getPassword());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 根据邮件会话属性和密码验证器构造一个发送邮件的session</span></span><br><span class="line">        Session sendMailSession = Session.getDefaultInstance(pro, authenticator);</span><br><span class="line"></span><br><span class="line"><span class="comment">//    Session sendMailSession = Session.getInstance(pro, new Authenticator() &#123;</span></span><br><span class="line"><span class="comment">//      @Override</span></span><br><span class="line"><span class="comment">//      protected PasswordAuthentication getPasswordAuthentication() &#123;</span></span><br><span class="line"><span class="comment">//        return new PasswordAuthentication(mailInfo.getUserName(),mailInfo.getPassword());</span></span><br><span class="line"><span class="comment">//      &#125;</span></span><br><span class="line"><span class="comment">//    &#125;);</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 根据session创建一个邮件消息</span></span><br><span class="line">            Message mailMessage = <span class="keyword">new</span> MimeMessage(sendMailSession);</span><br><span class="line">            <span class="comment">// 创建邮件发送者地址</span></span><br><span class="line">            Address from = <span class="keyword">new</span> InternetAddress(mailInfo.getFromAddress());</span><br><span class="line">            <span class="comment">// 设置邮件消息的发送者</span></span><br><span class="line">            mailMessage.setFrom(from);</span><br><span class="line">            <span class="comment">// 创建邮件的接收者地址，并设置到邮件消息中</span></span><br><span class="line">            Address to = <span class="keyword">new</span> InternetAddress(mailInfo.getToAddress());</span><br><span class="line">            mailMessage.setRecipient(Message.RecipientType.TO, to);</span><br><span class="line">            <span class="comment">// 设置邮件消息的主题</span></span><br><span class="line">            mailMessage.setSubject(mailInfo.getSubject());</span><br><span class="line">            <span class="comment">// 设置邮件消息发送的时间</span></span><br><span class="line">            mailMessage.setSentDate(<span class="keyword">new</span> Date());</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 设置邮件消息的主要内容</span></span><br><span class="line">            String mailContent = mailInfo.getContent();</span><br><span class="line">            mailMessage.setText(mailContent);</span><br><span class="line">            <span class="comment">// 发送邮件</span></span><br><span class="line">            Transport.send(mailMessage);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (MessagingException ex) &#123;</span><br><span class="line">            ex.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MailSenderInfo</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 发送邮件的服务器的IP和端口</span></span><br><span class="line">        <span class="keyword">private</span> String mailServerHost;</span><br><span class="line">        <span class="comment">// 发送邮件服务器端口,有些邮箱可能不是25</span></span><br><span class="line">        <span class="keyword">private</span> String mailServerPort = <span class="string">"25"</span>;</span><br><span class="line">        <span class="comment">// 邮件发送者的地址</span></span><br><span class="line">        <span class="keyword">private</span> String fromAddress;</span><br><span class="line">        <span class="comment">// 邮件接收者的地址</span></span><br><span class="line">        <span class="keyword">private</span> String toAddress;</span><br><span class="line">        <span class="comment">// 登陆邮件发送服务器的用户名和密码</span></span><br><span class="line">        <span class="keyword">private</span> String userName;</span><br><span class="line">        <span class="keyword">private</span> String password;</span><br><span class="line">        <span class="comment">// 是否需要身份验证</span></span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">boolean</span> validate = <span class="keyword">false</span>;</span><br><span class="line">        <span class="comment">// 邮件主题</span></span><br><span class="line">        <span class="keyword">private</span> String subject;</span><br><span class="line">        <span class="comment">// 邮件的文本内容</span></span><br><span class="line">        <span class="keyword">private</span> String content;</span><br><span class="line">        <span class="comment">// 邮件附件的文件名</span></span><br><span class="line">        <span class="keyword">private</span> String[] attachFileNames;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * 获得邮件会话属性</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> Properties <span class="title">getProperties</span><span class="params">()</span></span>&#123;</span><br><span class="line">            Properties p = <span class="keyword">new</span> Properties();</span><br><span class="line">            p.put(<span class="string">"mail.smtp.host"</span>, <span class="keyword">this</span>.mailServerHost);</span><br><span class="line">            p.put(<span class="string">"mail.smtp.port"</span>, <span class="keyword">this</span>.mailServerPort);</span><br><span class="line">            p.put(<span class="string">"mail.smtp.auth"</span>, validate ? <span class="string">"true"</span> : <span class="string">"false"</span>);</span><br><span class="line">            <span class="keyword">return</span> p;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">MailSenderInfo</span><span class="params">()</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.mailServerHost = <span class="string">"smtp.qq.com"</span>; <span class="comment">//qq邮件的服务器地址</span></span><br><span class="line">            <span class="keyword">this</span>.mailServerPort = <span class="string">"25"</span>;</span><br><span class="line">            <span class="keyword">this</span>.validate = <span class="keyword">true</span>;</span><br><span class="line">            <span class="comment">//注意需要开启邮箱的SMTP/POP3/IMAP 的服务</span></span><br><span class="line">            <span class="keyword">this</span>.password = <span class="string">"......."</span>; <span class="comment">//这里密码应设置为qq邮箱的第三方授权码</span></span><br><span class="line">            <span class="keyword">this</span>.userName = <span class="string">"....@qq.com"</span>;<span class="comment">//qq邮箱账户名</span></span><br><span class="line">            <span class="keyword">this</span>.toAddress = <span class="string">"....@qq.com"</span>;<span class="comment">//发到的qq邮箱账户</span></span><br><span class="line">            <span class="keyword">this</span>.fromAddress = <span class="string">"@qq.com"</span>;<span class="comment">//发送邮件的qq邮箱地址</span></span><br><span class="line">            <span class="keyword">this</span>.subject = <span class="string">"test"</span>;</span><br><span class="line">            <span class="keyword">this</span>.content = <span class="string">"This is a test of mailsender.\n If you get this email, please return \"succeeded\" to"</span> +</span><br><span class="line">                    <span class="string">"your father!"</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getMailServerHost</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> mailServerHost;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setMailServerHost</span><span class="params">(String mailServerHost)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.mailServerHost = mailServerHost;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getMailServerPort</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> mailServerPort;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setMailServerPort</span><span class="params">(String mailServerPort)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.mailServerPort = mailServerPort;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isValidate</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> validate;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setValidate</span><span class="params">(<span class="keyword">boolean</span> validate)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.validate = validate;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> String[] getAttachFileNames() &#123;</span><br><span class="line">            <span class="keyword">return</span> attachFileNames;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setAttachFileNames</span><span class="params">(String[] fileNames)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.attachFileNames = fileNames;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getFromAddress</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> fromAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setFromAddress</span><span class="params">(String fromAddress)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.fromAddress = fromAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getPassword</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> password;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setPassword</span><span class="params">(String password)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.password = password;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getToAddress</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> toAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setToAddress</span><span class="params">(String toAddress)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.toAddress = toAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getUserName</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> userName;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setUserName</span><span class="params">(String userName)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.userName = userName;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getSubject</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> subject;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setSubject</span><span class="params">(String subject)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.subject = subject;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getContent</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> content;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setContent</span><span class="params">(String textContent)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.content = textContent;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyAuthenticator</span> <span class="keyword">extends</span> <span class="title">Authenticator</span> </span>&#123;</span><br><span class="line">        String userName = <span class="keyword">null</span>;</span><br><span class="line">        String password = <span class="keyword">null</span>;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">MyAuthenticator</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">MyAuthenticator</span><span class="params">(String username, String password)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.userName = username;</span><br><span class="line">            <span class="keyword">this</span>.password = password;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">protected</span> PasswordAuthentication <span class="title">getPasswordAuthentication</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> PasswordAuthentication(userName, password);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用的话run就可以了</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">MailSender sender = <span class="keyword">new</span> MailSender();</span><br><span class="line">sender.run();</span><br></pre></td></tr></table></figure>
+
+<p>注意manifest下添加权限</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;uses-permission android:name="android.permission.INTERNET"&gt;&lt;/uses-permission&gt;</span><br></pre></td></tr></table></figure>
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/05/16/Android-学习笔记之SharedPreference/" rel="next" title="Android 学习笔记之SharedPreference">
+                <i class="fa fa-chevron-left"></i> Android 学习笔记之SharedPreference
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/05/16/Android学习笔记之IntentService/" rel="prev" title="Android学习笔记之IntentService">
+                Android学习笔记之IntentService <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">PCM</p>
+              <div class="site-description motion-element" itemprop="description">fighting</div>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">11</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能"><span class="nav-number">1.</span> <span class="nav-text">Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#拨打电话"><span class="nav-number">1.0.1.</span> <span class="nav-text">拨打电话</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#发短信"><span class="nav-number">1.0.2.</span> <span class="nav-text">发短信</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#发邮件"><span class="nav-number">1.0.3.</span> <span class="nav-text">发邮件</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">PCM</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> v7.1.1</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+
+  
+
+
+  <script src="/js/utils.js?v=7.1.1"></script>
+
+  <script src="/js/motion.js?v=7.1.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/schemes/muse.js?v=7.1.1"></script>
+
+
+
+  
+  <script src="/js/scrollspy.js?v=7.1.1"></script>
+<script src="/js/post-details.js?v=7.1.1"></script>
+
+
+
+  
+
+
+  <script src="/js/next-boot.js?v=7.1.1"></script>
+
+
+  
+
+  
+
+  
+
+  
+
+
+  
+
+
+  
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

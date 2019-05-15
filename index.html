@@ -293,7 +293,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/15/hello-world/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/实验三：从整理上理解进程创建、可执行文件的加载和进程执行进程切换，重点理解分析fork、execve和进程切换/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="PCM">
@@ -313,7 +313,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2019/05/15/hello-world/" class="post-title-link" itemprop="url">Welcome to my first blog website！</a>
+                <a href="/2019/05/16/实验三：从整理上理解进程创建、可执行文件的加载和进程执行进程切换，重点理解分析fork、execve和进程切换/" class="post-title-link" itemprop="url">实验三：从整理上理解进程创建、可执行文件的加载和进程执行进程切换，重点理解分析fork、execve和进程切换</a>
               
             
           </h1>
@@ -338,24 +338,1658 @@
                 
               
 
-              <time title="创建时间：2019-05-15 21:12:08" itemprop="dateCreated datePublished" datetime="2019-05-15T21:12:08+08:00">2019-05-15</time>
+              <time title="创建时间：2019-05-16 01:16:40 / 修改时间：01:17:05" itemprop="dateCreated datePublished" datetime="2019-05-16T01:16:40+08:00">2019-05-16</time>
             
 
             
               
 
               
-                
-                <span class="post-meta-divider">|</span>
-                
+            
+          </span>
 
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-calendar-check-o"></i>
-                </span>
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>学号:293    转载请注明出处<a href="https://github.com/mengning/linuxkernel/" target="_blank" rel="noopener">https://github.com/mengning/linuxkernel/</a></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190326201014169-1471370366.png" alt></p>
+<h2 id="一、阅读理解task-struct数据结构"><a href="#一、阅读理解task-struct数据结构" class="headerlink" title="一、阅读理解task_struct数据结构"></a>一、阅读理解task_struct数据结构</h2><p><a href="http://codelab.shiyanlou.com/xref/linux-3.18.6/include/linux/sched.h#1235%EF%BC%9B" target="_blank" rel="noopener">代码地址</a></p>
+<h4 id="进程"><a href="#进程" class="headerlink" title="进程"></a>进程</h4><ul>
+<li><p>进程是程序的一个执行实例</p>
+</li>
+<li><p>进程是正在执行的程序</p>
+</li>
+<li><p>进程是能分配处理器并由处理器执行的实体</p>
+<p>系统为了管理进程需要对每个进程所做的事情进行描述。一般，操作系统使用数据结构来代表不同的实体，这个数据结构就是通常所说的进程控制块PCB。在linux中即是task_struct。结构定义位于</p>
+</li>
+</ul>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/include/linux/sched.h</span><br></pre></td></tr></table></figure>
+
+<h4 id="操作系统"><a href="#操作系统" class="headerlink" title="操作系统"></a>操作系统</h4><ul>
+<li>进程管理</li>
+<li>内存管理</li>
+<li>文件系统</li>
+</ul>
+<h4 id="进程控制块PCB–task-struct"><a href="#进程控制块PCB–task-struct" class="headerlink" title="进程控制块PCB–task_struct"></a>进程控制块PCB–task_struct</h4><ul>
+<li>进程在TASK_RUNNING下是可运行的，但它有没有运行取决于它有没有获得cpu的控制权，即这个进程有没有在cpu上实际的执行</li>
+<li>进程的标示pid</li>
+<li>程序创建的进程具有父子关系，在编程时往往需要引用这样的父子关系。进程描述符中有几个域用来表示这样的关系</li>
+</ul>
+<h4 id="重要参数"><a href="#重要参数" class="headerlink" title="重要参数"></a>重要参数</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">volatile</span> <span class="keyword">long</span> state;<span class="comment">//表示进程的当前状态: </span></span><br><span class="line"><span class="keyword">unsigned</span> <span class="keyword">long</span> flags; <span class="comment">//进程标志: </span></span><br><span class="line"><span class="keyword">long</span> priority; <span class="comment">//进程优先级。 Priority的值给出进程每次获取CPU后可使用的时间(按jiffies计)。优先级可通过系统调用sys_setpriorty改变(在kernel/sys.c中)。 </span></span><br><span class="line"><span class="keyword">long</span> counter; <span class="comment">//在轮转法调度时表示进程当前还可运行多久。 </span></span><br><span class="line"><span class="keyword">unsigned</span> <span class="keyword">long</span> policy; <span class="comment">//该进程的进程调度策略，可以通过系统调用sys_sched_setscheduler()更改(见kernel/sched.c)。</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="https://img-blog.csdnimg.cn/20190326150104622.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3BqejAwMA==,size_16,color_FFFFFF,t_70" alt="img"></p>
+<p>​    进程描述符中有指向mm_struct结构体的指针mm，这个结构体是对该进程用户空间的描述；也有指向fs_struct结构体的指针fs，这个结构体是对进程当前所在目录的描述；也有指向files_struct结构体的指针files，这个结构体是对该进程已打开的所有文件进行描述；另外还有一个小型的进程描述符(low-level information)—thread_info。在这个结构体中，也有指向该进程描述符的指针task。因此，这两个结构体是相互关联的。</p>
+<h2 id="二、分析fork函数对应的内核处理过程"><a href="#二、分析fork函数对应的内核处理过程" class="headerlink" title="二、分析ｆｏｒｋ函数对应的内核处理过程"></a>二、分析ｆｏｒｋ函数对应的内核处理过程</h2><p>fork、vfork、 clone三个系统调用都可以创建一个新进程，而且都是通过调用do_fork来实现进程的创建。</p>
+<p>具体过程如下: fork() -&gt; sys_clone() -&gt; do_fork() -&gt; dup_task_struct() -&gt; copy_process() -&gt; copy_thread() -&gt; ret_from_fork()</p>
+<p>分析do_fork代码</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">long</span> <span class="title">do_fork</span><span class="params">(<span class="keyword">unsigned</span> <span class="keyword">long</span> clone_flags,</span></span></span><br><span class="line"><span class="function"><span class="params">          <span class="keyword">unsigned</span> <span class="keyword">long</span> stack_start,</span></span></span><br><span class="line"><span class="function"><span class="params">          <span class="keyword">unsigned</span> <span class="keyword">long</span> stack_size,</span></span></span><br><span class="line"><span class="function"><span class="params">          <span class="keyword">int</span> __user *parent_tidptr,</span></span></span><br><span class="line"><span class="function"><span class="params">          <span class="keyword">int</span> __user *child_tidptr)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">task_struct</span> *<span class="title">p</span>;</span></span><br><span class="line">    <span class="keyword">int</span> trace = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">long</span> nr;</span><br><span class="line"> </span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"> </span><br><span class="line">    <span class="comment">// 复制进程描述符，返回创建的task_struct的指针</span></span><br><span class="line">    p = copy_process(clone_flags, stack_start, stack_size,</span><br><span class="line">             child_tidptr, <span class="literal">NULL</span>, trace);</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">if</span> (!IS_ERR(p)) &#123;</span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">completion</span> <span class="title">vfork</span>;</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> <span class="title">pid</span> *<span class="title">pid</span>;</span></span><br><span class="line"> </span><br><span class="line">        trace_sched_process_fork(current, p);</span><br><span class="line"> </span><br><span class="line">        <span class="comment">// 取出task结构体内的pid</span></span><br><span class="line">        pid = get_task_pid(p, PIDTYPE_PID);</span><br><span class="line">        nr = pid_vnr(pid);</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">if</span> (clone_flags &amp; CLONE_PARENT_SETTID)</span><br><span class="line">            put_user(nr, parent_tidptr);</span><br><span class="line"> </span><br><span class="line">        <span class="comment">// 如果使用的是vfork，那么必须采用某种完成机制，确保父进程后运行</span></span><br><span class="line">        <span class="keyword">if</span> (clone_flags &amp; CLONE_VFORK) &#123;</span><br><span class="line">            p-&gt;vfork_done = &amp;vfork;</span><br><span class="line">            init_completion(&amp;vfork);</span><br><span class="line">            get_task_struct(p);</span><br><span class="line">        &#125;</span><br><span class="line"> </span><br><span class="line">        <span class="comment">// 将子进程添加到调度器的队列，使得子进程有机会获得CPU</span></span><br><span class="line">        wake_up_new_task(p);</span><br><span class="line"> </span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line"> </span><br><span class="line">        <span class="comment">// 如果设置了 CLONE_VFORK 则将父进程插入等待队列，并挂起父进程直到子进程释放自己的内存空间</span></span><br><span class="line">        <span class="comment">// 保证子进程优先于父进程运行</span></span><br><span class="line">        <span class="keyword">if</span> (clone_flags &amp; CLONE_VFORK) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!wait_for_vfork_done(p, &amp;vfork))</span><br><span class="line">                ptrace_event_pid(PTRACE_EVENT_VFORK_DONE, pid);</span><br><span class="line">        &#125;</span><br><span class="line"> </span><br><span class="line">        put_pid(pid);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        nr = PTR_ERR(p);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> nr;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>do_fork中调用copy_process，将当期进程复制一份出来为子进程，并且为子进程设置相应地上下文信息。<br>初始化vfork的完成处理信息（如果是vfork调用）<br>调用wake_up_new_task，将子进程放入调度器的队列中，此时的子进程就可以被调度进程选中，得以运行。如果是vfork调用，需要阻塞父进程，知道子进程执行exec。</p>
+<p>当执行fork系统调用时，操作系统会执行以下步骤: </p>
+<p>1.内核确保有创建新进程所需的充足的系统资源。其完成过程如下:</p>
+<p>（1）内核确保系统可以处理多个将要调度的进程，而且调度程序上的负载是可以管理的。</p>
+<p>（2）内核确保这个特定的用户当前没有运行过多垄断使用现有资源的进程。</p>
+<p>（3）内核确保为新进程提供足够的内存空间。<br>操作系统已经知道：此时新进程和父进程在各个方面都是相同的。这还包括内存要求。在交换系统中，整个内存都要是可用的。在纯分页系统中，需要大量用于保存整个地址空间和页面映射表的内存空间。在请求分页调度中，启动进程，至少页面映射表必不可少。在请求分页调度方法中，地址空间中更多的页面可以通过缺页错误累计得到。如果内存空间不足，内核检查磁盘上是否有空间，如果有，就占用该空间的交换区。像前面在进程状态转移中讨论的一样，据此确定子进程的状态。</p>
+<p>2.内核现在从进程表中找到一个位置，然后开始构造子进程的上下文。</p>
+<p>3.内核维护”下一个可用的ID号”的全局值。任何时候，当fork系统调用创建新进程时，内核将该ID分配给新的子进程，并将该编号加1。内核还要设置一个最大值，当设置超过这个值的时候，系统就不能处理任何进程。如果该编号等于或大于这个最大值，内核从0重新分配编号，但是另一方面希望pid等于0的进程已经终止运行。</p>
+<p>4.内核初始化子进程的进程表插槽中的字段，如下：</p>
+<p>（1） 内核将真实有效的用户ID从父进程的进程表插槽中复制到子进程对应的位置。</p>
+<p>（2）内核还要将父进程的准确值复制给子进程。</p>
+<p>（3）内核通过将父进程ID复制到子进程插槽，从而链接进程树结构中的子进程。</p>
+<p>（4）内核初始化子进程插槽中不同的调度字段和统计字段，如初始优先级、CPU使用情况等。</p>
+<p>（5）内核将该子进程的状态设置为”正在创建”。</p>
+<p>5.现在，内核搜索父进程u区（进程信息交换区）中的文件描述符，并沿着指针从用户打开文件描述符到文件表条目，同时将文件表中那些条目的引用计数增加1。</p>
+<p>6.内核为子进程的u区、区域表、页表等分配内存空间。</p>
+<p>7.现在，除了子进程u区指向进程表插槽的指针要做适当的调整之外，内核将父进程的u区复制给子进程。这是因为父进程和子进程在进程表中有两个不同的条目。因此，指向这两个不同条目的指针也不相同。此时，所有其他内容是相同的。</p>
+<p>8.内核将数据和堆栈区(非共享的部分)复制到子进程的另一个内存区，并调整区域表条目。然而，它只保存文本区的一个副本，因为文本区是共享的。诚如所示，此时文本包含相同的程序代码。</p>
+<p>9.内核在子进程上下文的静态部分后面创建动态内容。它复制父进程上下文包含保存Fork系统调用的寄存器和内核堆栈的第一层。此时，父进程和子进程的内核堆栈的内容完全相同。</p>
+<p>10/内核创建子进程第2层的伪程序上下文，这个伪程序上下文包括第1层保存的寄存器上下文。它在寄存器内容保存区中设置程序计数器(PC)和其他寄存器，这样就可以在适当的位置”重新开始”执行子进程。</p>
+<p>11.现在，内核将子进程状态从”准备就绪”变成”准备运行”(根据情况要么在内存中，要么被交换)。它将子进程ID返回给用户。</p>
+<p>12.调度程序最终调度子进程。在程序中，调度程序检查它是不是子进程。因为如果是子进程，它会执行”Exec”系统调用，由此将新程序加载到子进程的地址空间中。</p>
+<p>3.1 do_fork()流程</p>
+<pre><code>首先调用copy_process()为子进程复制出一份进程信息，如果是vfork()则初始化完成处理信息；
+然后调用wake_up_new_task将子进程加入调度器，为之分配CPU，如果是vfork()，则父进程等待子进程完成exec替换自己的地址空间。</code></pre><p>3.2 copy_process()流程</p>
+<pre><code>首先调用dup_task_struct()复制当前的task_struct，检查进程数是否超过限制；
+接着初始化自旋锁、挂起信号、CPU 定时器等；
+然后调用sched_fork初始化进程数据结构，并把进程状态设置为TASK_RUNNING，复制所有进程信息，包括文件系统、信号处理函数、信号、内存管理等；
+调用copy_thread()初始化子进程内核栈，为新进程分配并设置新的pid。</code></pre><p>3.3 dup_task_struct()流程</p>
+<pre><code>调用alloc_task_struct_node()分配一个 task_struct 节点；
+调用alloc_thread_info_node()分配一个 thread_info 节点，其实是分配了一个thread_union联合体,将栈底返回给 ti；
+最后将栈底的值 ti 赋值给新节点的栈。</code></pre><p>3.4 copy_thread的流程</p>
+<pre><code>获取子进程寄存器信息的存放位置
+对子进程的thread.sp赋值，将来子进程运行，这就是子进程的esp寄存器的值。
+如果是创建内核线程，那么它的运行位置是ret_from_kernel_thread，将这段代码的地址赋给thread.ip，之后准备其他寄存器信息，退出
+将父进程的寄存器信息复制给子进程。
+将子进程的eax寄存器值设置为0，所以fork调用在子进程中的返回值为0.
+子进程从ret_from_fork开始执行，所以它的地址赋给thread.ip，也就是将来的eip寄存器。</code></pre><p>3.5 新进程从ret_from_fork处开始执行，子进程的运行是由这几处保证的</p>
+<pre><code>dup_task_struct中为其分配了新的堆栈
+copy_process中调用了sched_fork，将其置为TASK_RUNNING
+copy_thread中将父进程的寄存器上下文复制给子进程，这是非常关键的一步，这里保证了父子进程的堆栈信息是一致的。
+将ret_from_fork的地址设置为eip寄存器的值，这是子进程的第一条指令。</code></pre><h3 id="三-使用GDB分析"><a href="#三-使用GDB分析" class="headerlink" title="三.使用GDB分析"></a>三.使用GDB分析</h3><p> 在test.c中添加使用fork系统函数的调用</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">int testFork(int argc, char *argv[])&#123;</span><br><span class="line">     pid_t fpid; </span><br><span class="line">     int count=<span class="number">0</span>;  </span><br><span class="line">     fpid=fork();   </span><br><span class="line">     <span class="keyword">if</span> (fpid &lt; <span class="number">0</span>)   </span><br><span class="line">         printf("error <span class="keyword">in</span> fork!");   </span><br><span class="line">     <span class="keyword">else</span> <span class="keyword">if</span> (fpid == <span class="number">0</span>) &#123;  </span><br><span class="line">         printf("i am the child process, my process id is %d\n",getpid());        </span><br><span class="line">         count++;  </span><br><span class="line">     &#125;  </span><br><span class="line">     <span class="keyword">else</span> &#123;  </span><br><span class="line">         printf("i am the parent process, my process id is %d\n",getpid());   </span><br><span class="line">         count++;  </span><br><span class="line">     &#125;  </span><br><span class="line">     printf("result: %d\n",count);  </span><br><span class="line">     return <span class="number">0</span>;  </span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>添加到menuconfig中</p>
+<p>然后重新生成文件系统，使用qemu重新挂载内核，然后(承接上次)</p>
+<p><code>make rootfs</code></p>
+<p>然后重开一个shell进入linux内核的文件夹进行gdb。</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">gdb vmlinux</span><br><span class="line">target remote:<span class="number">1234</span></span><br><span class="line">b sys_clone</span><br><span class="line">b do_fork</span><br><span class="line">b dup_task_struct</span><br><span class="line">b copy_process</span><br><span class="line">b copy_thread</span><br><span class="line">b ret_from_for</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190326215140213-1784521822.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190326215249160-400368726.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190326215422135-678338522.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190326215518490-1402478397.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190326215548044-1583884073.png" alt></p>
+<h3 id="四、理解编译连接的过程和ELF可执行文件格式"><a href="#四、理解编译连接的过程和ELF可执行文件格式" class="headerlink" title="四、理解编译连接的过程和ELF可执行文件格式"></a>四、理解编译连接的过程和ELF可执行文件格式</h3><p><img src="https://img-blog.csdnimg.cn/20190322191439317.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="img"></p>
+<p>Elf可执行文件的过程</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">一个可重定位(relocatable)文件保存着代码和适当的数据，用来和其他的object文件一起来创建一个可执行文件或者是一个共享文件。 </span><br><span class="line">一个可执行(executable)文件保存着一个用来执行的程序；该文件指出了exec(BA_OS)如何来创建程序进程映象。 </span><br><span class="line">一个共享object文件保存着代码和合适的数据，用来被不同的两个链接器链接。</span><br></pre></td></tr></table></figure>
+
+<p>流程图</p>
+<p><img src="https://img-blog.csdnimg.cn/20190322191941319.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<h3 id="五、编程使用exec-库函数加载一个可执行文件，动态链接分为可执行程序装载时动态链接和运行时动态链接"><a href="#五、编程使用exec-库函数加载一个可执行文件，动态链接分为可执行程序装载时动态链接和运行时动态链接" class="headerlink" title="五、编程使用exec*库函数加载一个可执行文件，动态链接分为可执行程序装载时动态链接和运行时动态链接"></a>五、编程使用exec*库函数加载一个可执行文件，动态链接分为可执行程序装载时动态链接和运行时动态链接</h3><p>编辑一个test.c文件</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span><span class="meta-string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span><span class="meta-string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span>&#123;</span><br><span class="line">    <span class="built_in">printf</span>(<span class="string">"hello world!\n"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后进行编译</p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190326221155039-1722522330.png" alt></p>
+<p>test.static 明显大于test。</p>
+<p>静态链接方式：在程序运行之前完成所有的组装工作，生成一个可执行的目标文件</p>
+<p>动态链接方式：在程序已经为了执行被装载入内存之后完成链接工作，并且在内存中一般只保留该编译单元的一份拷贝</p>
+<p>动态链接库的两种链接方式:装载时动态链接、运行时动态链接</p>
+<h3 id="六、使用gdb跟踪分析一个execve系统调用内核处理函数do-execve-验证您对linux系统加载可执行程序所需过程的理解"><a href="#六、使用gdb跟踪分析一个execve系统调用内核处理函数do-execve-验证您对linux系统加载可执行程序所需过程的理解" class="headerlink" title="六、使用gdb跟踪分析一个execve系统调用内核处理函数do_execve,验证您对linux系统加载可执行程序所需过程的理解"></a>六、使用gdb跟踪分析一个execve系统调用内核处理函数do_execve,验证您对linux系统加载可执行程序所需过程的理解</h3><p>1.设置断点<br><img src="https://img-blog.csdnimg.cn/20190322201111879.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"><br>2.中断情况如下<br><img src="https://img-blog.csdnimg.cn/20190322201226181.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"><img src="https://img-blog.csdnimg.cn/20190322201310406.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<p>do_execve</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">do_execve</span><span class="params">(struct filename *filename, </span></span></span><br><span class="line"><span class="function"><span class="params">              <span class="keyword">const</span> <span class="keyword">char</span> __user *<span class="keyword">const</span> __user *__argv,</span></span></span><br><span class="line"><span class="function"><span class="params">              <span class="keyword">const</span> <span class="keyword">char</span> __user *<span class="keyword">const</span> __user *__envp)</span> </span>&#123; </span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">user_arg_ptr</span> <span class="title">argv</span> = &#123;</span> .ptr.native = __argv &#125;; </span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">user_arg_ptr</span> <span class="title">envp</span> = &#123;</span> .ptr.native = __envp &#125;; </span><br><span class="line">    <span class="comment">//调用do_execve_common </span></span><br><span class="line">    <span class="keyword">return</span> do_execve_common(filename, argv, envp); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="七、特别关注新的可执行程序是从哪里开始执行的？为什么execve系统调用返回后新的可执行程序能顺利执行？对于静态链接的可执行程序和动态链接的可执行程序execve系统调用返回时会有什么不同？"><a href="#七、特别关注新的可执行程序是从哪里开始执行的？为什么execve系统调用返回后新的可执行程序能顺利执行？对于静态链接的可执行程序和动态链接的可执行程序execve系统调用返回时会有什么不同？" class="headerlink" title="七、特别关注新的可执行程序是从哪里开始执行的？为什么execve系统调用返回后新的可执行程序能顺利执行？对于静态链接的可执行程序和动态链接的可执行程序execve系统调用返回时会有什么不同？"></a>七、特别关注新的可执行程序是从哪里开始执行的？为什么execve系统调用返回后新的可执行程序能顺利执行？对于静态链接的可执行程序和动态链接的可执行程序execve系统调用返回时会有什么不同？</h3><p>新的可执行程序通过修改内核堆栈eip作为新程序的起点，<br>从new_ip开始执行后start_thread把返回到用户态的位置从int 0x80的下一条指令变成新加载的可执行文件的入口位置。</p>
+<ul>
+<li>当执行到execve系统调用时，进入内核态，用execve()加载的可执行文件覆盖当前进程的可执行程序，</li>
+</ul>
+<p>当execve系统调用返回时，返回新的可执行程序的执行起点（main函数），所以execve系统调用返回后新的可执行程序能顺利执行。</p>
+<ul>
+<li>execve系统调用返回时，如果是静态链接，elf_entry指向可执行文件规定的头部（main函数对应的位置0x8048***）；如果需要依赖动态链接库，elf_entry指向动态链接器的起点。动态链接主要是由动态链接器ld来完成的。</li>
+</ul>
+<h3 id="八、理解Linux系统中进程调度的时机，可以在内核代码中搜索schedule-函数，看都是哪里调用了schedule-，判断我们课程内容中的总结是否准确；"><a href="#八、理解Linux系统中进程调度的时机，可以在内核代码中搜索schedule-函数，看都是哪里调用了schedule-，判断我们课程内容中的总结是否准确；" class="headerlink" title="八、理解Linux系统中进程调度的时机，可以在内核代码中搜索schedule()函数，看都是哪里调用了schedule()，判断我们课程内容中的总结是否准确；"></a>八、理解Linux系统中进程调度的时机，可以在内核代码中搜索schedule()函数，看都是哪里调用了schedule()，判断我们课程内容中的总结是否准确；</h3><p>调用地方：</p>
+<ul>
+<li>中断处理过程（包括时钟中断、I/O中断、系统调用和异常）中，直接调用schedule()，或者返回用户态时根据need_resched标记调用schedule()</li>
+<li>内核线程可以直接调用schedule()进行进程切换，也可以在中断处理过程中进行调度，也就是说内核线程作为一类的特殊的进程可以主动调度，也可以被动调度；</li>
+<li>用户态进程无法实现主动调度，仅能通过陷入内核态后的某个时机点进行调度，即在中断处理过程中进行调度。</li>
+</ul>
+<h3 id="九、使用gdb跟踪分析一个schedule-函数-，验证对Linux系统进程调度与进程切换过程的理解"><a href="#九、使用gdb跟踪分析一个schedule-函数-，验证对Linux系统进程调度与进程切换过程的理解" class="headerlink" title="九、使用gdb跟踪分析一个schedule()函数 ，验证对Linux系统进程调度与进程切换过程的理解"></a>九、使用gdb跟踪分析一个schedule()函数 ，验证对Linux系统进程调度与进程切换过程的理解</h3><p>首先设几个断点分别是schedule，pick_next_task，context_switch，__switch_to<br><img src="https://img-blog.csdnimg.cn/20190322211251630.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"><br>schdule调用和函数<br><img src="https://img-blog.csdnimg.cn/20190322211545516.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<p><img src="https://img-blog.csdnimg.cn/20190322211616457.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<p>两个重要的函数context_switch和pick_next_task函数都在schedule函数中</p>
+<p><img src="https://img-blog.csdnimg.cn/20190322211725727.png" alt="在这里插入图片描述"><br>pick_next_task<br><img src="https://img-blog.csdnimg.cn/20190322211754470.png" alt="在这里插入图片描述"></p>
+<p>context_switch<br><img src="https://img-blog.csdnimg.cn/20190322211833992.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzM4OTA5Nw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述"></p>
+<h3 id="十、分析switch-to中的汇编代码，理解进程上下文的切换机制，以及与中断上下文切换的关系"><a href="#十、分析switch-to中的汇编代码，理解进程上下文的切换机制，以及与中断上下文切换的关系" class="headerlink" title="十、分析switch_to中的汇编代码，理解进程上下文的切换机制，以及与中断上下文切换的关系"></a>十、分析switch_to中的汇编代码，理解进程上下文的切换机制，以及与中断上下文切换的关系</h3><p>1.关键函数的调用关系:</p>
+<p>schedule() –&gt; context_switch() –&gt; switch_to –&gt; __switch_to()</p>
+<p>2.汇编代码分析</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(<span class="string">"pushfl\n\t"</span> <span class="comment">/* 保存当前进程的标志位 */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"pushl %%ebp\n\t"</span> <span class="comment">/* 保存当前进程的堆栈基址EBP */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"movl %%esp,%[prev_sp]\n\t"</span> <span class="comment">/* 保存当前栈顶ESP */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"movl %[next_sp],%%esp\n\t"</span> <span class="comment">/* 把下一个进程的栈顶放到esp寄存器中，完成了内核堆栈的切换，从此往下压栈都是在next进程的内核堆栈中。 */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"movl $1f,%[prev_ip]\n\t"</span> <span class="comment">/* 保存当前进程的EIP */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"pushl %[next_ip]\n\t"</span> <span class="comment">/* 把下一个进程的起点EIP压入堆栈 */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             __switch_canary </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"jmp __switch_to\n"</span> <span class="comment">/* 因为是函数所以是jmp，通过寄存器传递参数，寄存器是prev-a，next-d，当函数执行结束ret时因为没有压栈当前eip，所以需要使用之前压栈的eip，就是pop出next_ip。 */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"1:\t"</span> <span class="comment">/* 认为next进程开始执行。 */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"popl %%ebp\n\t"</span> <span class="comment">/* restore EBP */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"popfl\n"</span> <span class="comment">/* restore flags */</span> <span class="comment">/* output parameters 因为处于中断上下文，在内核中 prev_sp是内核堆栈栈顶 prev_ip是当前进程的eip */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             : [prev_sp] <span class="string">"=m"</span> (prev-&gt;thread.sp), </span></span></span><br><span class="line"><span class="function"><span class="params">             [prev_ip] <span class="string">"=m"</span> (prev-&gt;thread.ip), <span class="comment">//[prev_ip]是标号 </span></span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"=a"</span> (last), </span></span></span><br><span class="line"><span class="function"><span class="params">             </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="comment">/* clobbered output registers: */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"=b"</span> (ebx), <span class="string">"=c"</span> (ecx), <span class="string">"=d"</span> (edx), <span class="string">"=S"</span> (esi), <span class="string">"=D"</span> (edi) 			</span></span></span><br><span class="line"><span class="function"><span class="params">             __switch_canary_oparam </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="comment">/* input parameters: next_sp下一个进程的内核堆栈的栈顶 next_ip下一个进程执行的起点，一般是$1f，对于新创建的子进程是ret_from_fork*/</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             : [next_sp] <span class="string">"m"</span> (next-&gt;thread.sp), </span></span></span><br><span class="line"><span class="function"><span class="params">             [next_ip] <span class="string">"m"</span> (next-&gt;thread.ip), </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="comment">/* regparm parameters for __switch_to(): */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             [prev] <span class="string">"a"</span> (prev), </span></span></span><br><span class="line"><span class="function"><span class="params">             [next] <span class="string">"d"</span> (next) </span></span></span><br><span class="line"><span class="function"><span class="params">             </span></span></span><br><span class="line"><span class="function"><span class="params">             __switch_canary_iparam : <span class="comment">/* reloaded segment registers */</span> </span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="string">"memory"</span>)</span></span>; </span><br><span class="line">&#125; <span class="keyword">while</span> (<span class="number">0</span>)</span><br></pre></td></tr></table></figure>
+
+<p>switch_to实现了进程之间的真正切换：</p>
+<ul>
+<li>首先在当前进程prev的内核栈中保存esi,edi及ebp寄存器的内容。</li>
+<li>然后将prev的内核堆栈指针ebp存入prev-&gt;thread.esp中。</li>
+<li>把将要运行进程next的内核栈指针next-&gt;thread.esp置入esp寄存器中</li>
+<li>将popl指令所在的地址保存在prev-&gt;thread.eip中，这个地址就是prev下一次被调度</li>
+<li>通过jmp指令（而不是call指令）转入一个函数__switch_to()</li>
+<li>恢复next上次被调离时推进堆栈的内容。从现在开始，next进程就成为当前进程而真正开始执行</li>
+</ul>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>对Linux系统的执行过程的理解：</p>
+<ul>
+<li>在调度时机方面，内核线程可以直接调用schedule()进行进程切换，也可以在中断处理过程中进行调度，也就是说内核线程作为一类的特殊的进程可以主动调度，也可以被动调度。</li>
+<li>schedule()函数实现进程调度，context_ switch完成进程上下文切换，switch_ to完成寄存器的切换。</li>
+<li>用户态进程无法实现主动调度，仅能通过陷入内核态后的某个时机点进行调度，即在中断处理过程中进行调度</li>
+</ul>
+<p>参考</p>
+<p><a href="https://blog.csdn.net/weixin_43389097/article/details/88743522" target="_blank" rel="noopener">https://blog.csdn.net/weixin_43389097/article/details/88743522</a></p>
+<p><a href="https://blog.csdn.net/m0_37962600/article/details/79943461" target="_blank" rel="noopener">https://blog.csdn.net/m0_37962600/article/details/79943461</a></p>
+<p><a href="https://blog.csdn.net/pjz000/article/details/88818849" target="_blank" rel="noopener">https://blog.csdn.net/pjz000/article/details/88818849</a></p>
+<p><a href="https://blog.csdn.net/qq_31209133/article/details/88817974" target="_blank" rel="noopener">https://blog.csdn.net/qq_31209133/article/details/88817974</a></p>
+<p><a href="https://blog.csdn.net/qq_30417071/article/details/88809270" target="_blank" rel="noopener">https://blog.csdn.net/qq_30417071/article/details/88809270</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/实验二-跟踪分析Linux内核5-0系统调用处理过程/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
                 
-                  <span class="post-meta-item-text">更新于</span>
                 
-                <time title="修改时间：2019-05-16 00:03:48" itemprop="dateModified" datetime="2019-05-16T00:03:48+08:00">2019-05-16</time>
+                <a href="/2019/05/16/实验二-跟踪分析Linux内核5-0系统调用处理过程/" class="post-title-link" itemprop="url">实验二 跟踪分析Linux内核5.0系统调用处理过程</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:15:40 / 修改时间：01:16:13" itemprop="dateCreated datePublished" datetime="2019-05-16T01:15:40+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>实验二 跟踪分析Linux内核5.0系统调用处理过程</p>
+<p>学号293 原创作品转载请注明出处 <a href="https://github.com/mengning/linuxkernel/" target="_blank" rel="noopener">https://github.com/mengning/linuxkernel/</a></p>
+<h2 id="实验要求"><a href="#实验要求" class="headerlink" title="实验要求"></a>实验要求</h2><p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319015758931-690293208.png" alt></p>
+<h3 id="实验环境"><a href="#实验环境" class="headerlink" title="实验环境"></a>实验环境</h3><p>Ubuntu 18.04 LTS</p>
+<p>gcc 7.3.0</p>
+<h3 id="实验步骤"><a href="#实验步骤" class="headerlink" title="实验步骤"></a>实验步骤</h3><h4 id="1-下载内核代码并编译"><a href="#1-下载内核代码并编译" class="headerlink" title="1. 下载内核代码并编译"></a>1. 下载内核代码并编译</h4><p><a href="https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.0.1.tar.xz" target="_blank" rel="noopener">下载地址</a></p>
+<p>可以直接下载后然后手动解压</p>
+<p>也可以按照以下方式下载解压</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">mkdir</span> ~/LinuxKernel</span><br><span class="line"><span class="built_in">cd</span> ~/LinuxKernel</span><br><span class="line">wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-<span class="number">5</span>.<span class="number">0</span>.<span class="number">1</span>.tar.xz</span><br><span class="line">xz -d linux-<span class="number">5</span>.<span class="number">0</span>.<span class="number">1</span>.tar.xz</span><br><span class="line">tar -xvf linux-<span class="number">5</span>.<span class="number">0</span>.<span class="number">1</span>.tar</span><br><span class="line"><span class="built_in">cd</span> linux-<span class="number">5</span>.<span class="number">0</span>.<span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<p>然后安装内核编译工具，(可以考虑换源为国内的，<a href="https://www.cnblogs.com/wangjq19920210/p/9124193.html" target="_blank" rel="noopener">参考</a>)</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt install build-essential flex bison libssl-dev libelf-dev libncurses-dev</span><br></pre></td></tr></table></figure>
+
+<p>然后</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make menuconfig</span><br></pre></td></tr></table></figure>
+
+<p>选择kernel hacking -&gt; Compile-time checks and compiler options -&gt; [*]compile the kernel with debug info</p>
+<p>再make</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make -j8</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319212124551-526466003.png" alt></p>
+<p>此时已经编译完成，生成的文件地址在 ./arch/x86/boot/bzImage</p>
+<h4 id="2-制作根文件系统"><a href="#2-制作根文件系统" class="headerlink" title="2.制作根文件系统"></a>2.制作根文件系统</h4><figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/LinuxKernel</span><br><span class="line"><span class="built_in">mkdir</span> rootfs</span><br><span class="line">git clone https://github.com/mengning/menu.git</span><br><span class="line"><span class="built_in">cd</span> menu</span><br><span class="line">sudo apt install gcc-multilib   #不安装，编译时会提示缺少文件，实际上是安装gcc环境不完善导致</span><br><span class="line">gcc -pthread -o init linktable.c menu.c test.c -m32 -static</span><br><span class="line"><span class="built_in">cd</span> ../rootfs</span><br><span class="line">cp ../menu/init ./</span><br><span class="line"><span class="built_in">find</span> . | cpio -o -Hnewc |gzip -<span class="number">9</span> &gt; ../rootfs.img</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319212335166-374930859.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319212103764-1767504726.png" alt></p>
+<h4 id="3-启动MenuOS"><a href="#3-启动MenuOS" class="headerlink" title="3.启动MenuOS"></a>3.启动MenuOS</h4><figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">qemu-system-i386 -kernel linux-<span class="number">5</span>.<span class="number">0</span>.<span class="number">1</span>/arch/x86/boot/bzImage -initrd rootfs.img</span><br></pre></td></tr></table></figure>
+
+<p>此时显示<br><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319212455061-1529672161.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319212511826-1591500074.png" alt></p>
+<p>尽管我已经装了qemu-system-i386</p>
+<p>然后<br><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319212535997-216748770.png" alt></p>
+<p>我于是采用建议下载了qemu-system-x86,这里主要是因为我编译内核时编译的时64位的版本所以不能用<br>也可以通过重新<figure class="highlight plain"><figcaption><span>i386_defconfig``` 解决，但是这样在之后的gdb过程中，无法显示断点所在的文件与行数</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">所以这里我重新使用```make menuconfig```,去掉勾选```64-bit kernel```，同时勾选```Kernel hacking -&gt; Compile-time checks and compiler options -&gt;</span><br><span class="line">Compile the kernel with debug info``` 使编译成32位的内核并且能方便显示文件位置 </span><br><span class="line"></span><br><span class="line">再编译</span><br><span class="line">```cmd</span><br><span class="line">make -j8</span><br></pre></td></tr></table></figure></p>
+<p>此时需要重新生成rootfs.img,为了方便我这里直接修改Makefile中的设置为<br><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190320014355525-132811835.png" alt><br>然后进行编译</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/LinuxKernel/menu</span><br><span class="line">make rootfs</span><br></pre></td></tr></table></figure>
+
+<p>得到</p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319212609230-1863153505.png" alt></p>
+<h4 id="4-调试跟踪内核启动"><a href="#4-调试跟踪内核启动" class="headerlink" title="4.调试跟踪内核启动"></a>4.调试跟踪内核启动</h4><figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ..</span><br><span class="line">qemu-system-i386 -kernel linux-<span class="number">5</span>.<span class="number">0</span>.<span class="number">1</span>/arch/x86/boot/bzImage -initrd rootfs.img -S -s -<span class="built_in">append</span> nokaslr</span><br></pre></td></tr></table></figure>
+
+<p>注意：-append nokaslr选项的说明见<a href="https://www.zhihu.com/question/270476360" target="_blank" rel="noopener">知乎</a>。
+运行qemu虚拟机后，在当前目录新建一个终端窗口，运行下列命令：</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> linux-<span class="number">5</span>.<span class="number">0</span></span><br><span class="line">gdb vmlinux</span><br></pre></td></tr></table></figure>
+
+<p>进入gdb界面后连接到qemu,输入</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">target remote:<span class="number">1234</span></span><br></pre></td></tr></table></figure>
+
+<p>然后即可正常的进行debug了</p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190320014536747-1043227757.png" alt></p>
+<h4 id="5-代码分析"><a href="#5-代码分析" class="headerlink" title="5 代码分析"></a>5 代码分析</h4><p>几乎所有的内核模块均会在start_kernel进行初始化.在start_kernel中，会对各项硬件设备进行初始化，包括一些page_address、tick等等，直到最后需要执行的rest_init中，会开始让系统跑起来。</p>
+<p>然后在rest_init()过程中，会调用kernel_thread()来创建内核线程kernel_init,它创建用户的init进程，初始化内核，并设置成1号进程，这个进程会继续做相关的系统的初始化。</p>
+<p>然后，start_kernel 会调用kernel_thread 并创建kthreadd，负责管理内核中得所有线程，然后进程ID会被设置为2。</p>
+<p>最后，会创建idle进程（0号进程），不能被调度，并利用循环来不断调号空闲的CPU时间片，并且从不返回。</p>
+<p><strong>参考自：</strong><a href="https://blog.csdn.net/pianogirl123/article/details/50866778" target="_blank" rel="noopener">pianogirl123</a></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> __init __<span class="function">weak <span class="title">arch_call_rest_init</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	rest_init();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">asmlinkage __visible <span class="keyword">void</span> __<span class="function">init <span class="title">start_kernel</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">	<span class="keyword">char</span> *command_line;</span><br><span class="line">	<span class="keyword">char</span> *after_dashes;</span><br><span class="line"></span><br><span class="line">	set_task_stack_end_magic(&amp;init_task);</span><br><span class="line">	smp_setup_processor_id();</span><br><span class="line">	debug_objects_early_init();</span><br><span class="line"></span><br><span class="line">	cgroup_init_early();</span><br><span class="line"></span><br><span class="line">	local_irq_disable();</span><br><span class="line">	early_boot_irqs_disabled = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Interrupts are still disabled. Do necessary setups, then</span></span><br><span class="line"><span class="comment">	 * enable them.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	boot_cpu_init();</span><br><span class="line">	page_address_init();</span><br><span class="line">	pr_notice(<span class="string">"%s"</span>, linux_banner);</span><br><span class="line">	setup_arch(&amp;command_line);</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Set up the the initial canary and entropy after arch</span></span><br><span class="line"><span class="comment">	 * and after adding latent and command line entropy.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	add_latent_entropy();</span><br><span class="line">	add_device_randomness(command_line, <span class="built_in">strlen</span>(command_line));</span><br><span class="line">	boot_init_stack_canary();</span><br><span class="line">	mm_init_cpumask(&amp;init_mm);</span><br><span class="line">	setup_command_line(command_line);</span><br><span class="line">	setup_nr_cpu_ids();</span><br><span class="line">	setup_per_cpu_areas();</span><br><span class="line">	smp_prepare_boot_cpu();	<span class="comment">/* arch-specific boot-cpu hooks */</span></span><br><span class="line">	boot_cpu_hotplug_init();</span><br><span class="line"></span><br><span class="line">	build_all_zonelists(<span class="literal">NULL</span>);</span><br><span class="line">	page_alloc_init();</span><br><span class="line"></span><br><span class="line">	pr_notice(<span class="string">"Kernel command line: %s\n"</span>, boot_command_line);</span><br><span class="line">	parse_early_param();</span><br><span class="line">	after_dashes = parse_args(<span class="string">"Booting kernel"</span>,</span><br><span class="line">				  static_command_line, __start___param,</span><br><span class="line">				  __stop___param - __start___param,</span><br><span class="line">				  <span class="number">-1</span>, <span class="number">-1</span>, <span class="literal">NULL</span>, &amp;unknown_bootoption);</span><br><span class="line">	<span class="keyword">if</span> (!IS_ERR_OR_NULL(after_dashes))</span><br><span class="line">		parse_args(<span class="string">"Setting init args"</span>, after_dashes, <span class="literal">NULL</span>, <span class="number">0</span>, <span class="number">-1</span>, <span class="number">-1</span>,</span><br><span class="line">			   <span class="literal">NULL</span>, set_init_arg);</span><br><span class="line"></span><br><span class="line">	jump_label_init();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * These use large bootmem allocations and must precede</span></span><br><span class="line"><span class="comment">	 * kmem_cache_init()</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	setup_log_buf(<span class="number">0</span>);</span><br><span class="line">	vfs_caches_init_early();</span><br><span class="line">	sort_main_extable();</span><br><span class="line">	trap_init();</span><br><span class="line">	mm_init();</span><br><span class="line"></span><br><span class="line">	ftrace_init();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/* trace_printk can be enabled here */</span></span><br><span class="line">	early_trace_init();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Set up the scheduler prior starting any interrupts (such as the</span></span><br><span class="line"><span class="comment">	 * timer interrupt). Full topology setup happens at smp_init()</span></span><br><span class="line"><span class="comment">	 * time - but meanwhile we still have a functioning scheduler.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	sched_init();</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Disable preemption - early bootup scheduling is extremely</span></span><br><span class="line"><span class="comment">	 * fragile until we cpu_idle() for the first time.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	preempt_disable();</span><br><span class="line">	<span class="keyword">if</span> (WARN(!irqs_disabled(),</span><br><span class="line">		 <span class="string">"Interrupts were enabled *very* early, fixing it\n"</span>))</span><br><span class="line">		local_irq_disable();</span><br><span class="line">	radix_tree_init();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Set up housekeeping before setting up workqueues to allow the unbound</span></span><br><span class="line"><span class="comment">	 * workqueue to take non-housekeeping into account.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	housekeeping_init();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Allow workqueue creation and work item queueing/cancelling</span></span><br><span class="line"><span class="comment">	 * early.  Work item execution depends on kthreads and starts after</span></span><br><span class="line"><span class="comment">	 * workqueue_init().</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	workqueue_init_early();</span><br><span class="line"></span><br><span class="line">	rcu_init();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/* Trace events are available after this */</span></span><br><span class="line">	trace_init();</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> (initcall_debug)</span><br><span class="line">		initcall_debug_enable();</span><br><span class="line"></span><br><span class="line">	context_tracking_init();</span><br><span class="line">	<span class="comment">/* init some links before init_ISA_irqs() */</span></span><br><span class="line">	early_irq_init();</span><br><span class="line">	init_IRQ();</span><br><span class="line">	tick_init();</span><br><span class="line">	rcu_init_nohz();</span><br><span class="line">	init_timers();</span><br><span class="line">	hrtimers_init();</span><br><span class="line">	softirq_init();</span><br><span class="line">	timekeeping_init();</span><br><span class="line">	time_init();</span><br><span class="line">	printk_safe_init();</span><br><span class="line">	perf_event_init();</span><br><span class="line">	profile_init();</span><br><span class="line">	call_function_init();</span><br><span class="line">	WARN(!irqs_disabled(), <span class="string">"Interrupts were enabled early\n"</span>);</span><br><span class="line"></span><br><span class="line">	early_boot_irqs_disabled = <span class="literal">false</span>;</span><br><span class="line">	local_irq_enable();</span><br><span class="line"></span><br><span class="line">	kmem_cache_init_late();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * HACK ALERT! This is early. We're enabling the console before</span></span><br><span class="line"><span class="comment">	 * we've done PCI setups etc, and console_init() must be aware of</span></span><br><span class="line"><span class="comment">	 * this. But we do want output early, in case something goes wrong.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	console_init();</span><br><span class="line">	<span class="keyword">if</span> (panic_later)</span><br><span class="line">		panic(<span class="string">"Too many boot %s vars at `%s'"</span>, panic_later,</span><br><span class="line">		      panic_param);</span><br><span class="line"></span><br><span class="line">	lockdep_init();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * Need to run this when irqs are enabled, because it wants</span></span><br><span class="line"><span class="comment">	 * to self-test [hard/soft]-irqs on/off lock inversion bugs</span></span><br><span class="line"><span class="comment">	 * too:</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	locking_selftest();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	 * This needs to be called before any devices perform DMA</span></span><br><span class="line"><span class="comment">	 * operations that might use the SWIOTLB bounce buffers. It will</span></span><br><span class="line"><span class="comment">	 * mark the bounce buffers as decrypted so that their usage will</span></span><br><span class="line"><span class="comment">	 * not cause "plain-text" data to be decrypted when accessed.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	mem_encrypt_init();</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_BLK_DEV_INITRD</span></span><br><span class="line">	<span class="keyword">if</span> (initrd_start &amp;&amp; !initrd_below_start_ok &amp;&amp;</span><br><span class="line">	    page_to_pfn(virt_to_page((<span class="keyword">void</span> *)initrd_start)) &lt; min_low_pfn) &#123;</span><br><span class="line">		pr_crit(<span class="string">"initrd overwritten (0x%08lx &lt; 0x%08lx) - disabling it.\n"</span>,</span><br><span class="line">		    page_to_pfn(virt_to_page((<span class="keyword">void</span> *)initrd_start)),</span><br><span class="line">		    min_low_pfn);</span><br><span class="line">		initrd_start = <span class="number">0</span>;</span><br><span class="line">	&#125;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">	kmemleak_init();</span><br><span class="line">	setup_per_cpu_pageset();</span><br><span class="line">	numa_policy_init();</span><br><span class="line">	acpi_early_init();</span><br><span class="line">	<span class="keyword">if</span> (late_time_init)</span><br><span class="line">		late_time_init();</span><br><span class="line">	sched_clock_init();</span><br><span class="line">	calibrate_delay();</span><br><span class="line">	pid_idr_init();</span><br><span class="line">	anon_vma_init();</span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> CONFIG_X86</span></span><br><span class="line">	<span class="keyword">if</span> (efi_enabled(EFI_RUNTIME_SERVICES))</span><br><span class="line">		efi_enter_virtual_mode();</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">	thread_stack_cache_init();</span><br><span class="line">	cred_init();</span><br><span class="line">	fork_init();</span><br><span class="line">	proc_caches_init();</span><br><span class="line">	uts_ns_init();</span><br><span class="line">	buffer_init();</span><br><span class="line">	key_init();</span><br><span class="line">	security_init();</span><br><span class="line">	dbg_late_init();</span><br><span class="line">	vfs_caches_init();</span><br><span class="line">	pagecache_init();</span><br><span class="line">	signals_init();</span><br><span class="line">	seq_file_init();</span><br><span class="line">	proc_root_init();</span><br><span class="line">	nsfs_init();</span><br><span class="line">	cpuset_init();</span><br><span class="line">	cgroup_init();</span><br><span class="line">	taskstats_init_early();</span><br><span class="line">	delayacct_init();</span><br><span class="line"></span><br><span class="line">	check_bugs();</span><br><span class="line"></span><br><span class="line">	acpi_subsystem_init();</span><br><span class="line">	arch_post_acpi_subsys_init();</span><br><span class="line">	sfi_init_late();</span><br><span class="line"></span><br><span class="line">	<span class="comment">/* Do the rest non-__init'ed, we're now alive */</span></span><br><span class="line">	arch_call_rest_init();   <span class="comment">//调用rest_init()</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>rest_init() 函数</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">rest_init</span><span class="params">(<span class="keyword">void</span>)</span> </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">int</span> pid; </span><br><span class="line">    ……………… </span><br><span class="line">    kernel_thread(kernel_init, <span class="literal">NULL</span>, CLONE_FS);</span><br><span class="line">    numa_default_policy(); </span><br><span class="line">    pid = kernel_thread(kthreadd, <span class="literal">NULL</span>, CLONE_FS | CLONE_FILES);</span><br><span class="line">    rcu_read_lock(); </span><br><span class="line">    kthreadd_task = find_task_by_pid_ns(pid, &amp;init_pid_ns); </span><br><span class="line">    rcu_read_unlock(); </span><br><span class="line">    complete(&amp;kthreadd_done); </span><br><span class="line">    init_idle_bootup_task(current); </span><br><span class="line">    schedule_preempt_disabled(); </span><br><span class="line">    cpu_startup_entry(CPUHP_ONLINE); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="6-跟踪系统调用"><a href="#6-跟踪系统调用" class="headerlink" title="6.跟踪系统调用"></a>6.跟踪系统调用</h4><h5 id="增加系统调用"><a href="#增加系统调用" class="headerlink" title="增加系统调用"></a>增加系统调用</h5><ul>
+<li><p>根据学号后两位93，在<code>/usr/include/asm/unistd_32.h</code>中可查得<code>#define __NR_ftruncate 93</code>。
+<img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190319211633830-2042264954.png" alt></p>
+</li>
+<li><p>编写测试  在test.c 中添加两个函数，main函数中添加相应的Menuconfig()</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">update</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">char</span> *argv[])</span></span>&#123;</span><br><span class="line">	FILE *out;</span><br><span class="line">	<span class="keyword">char</span> *file = <span class="string">"93temp"</span>;</span><br><span class="line">	<span class="keyword">int</span> res = <span class="number">-2</span>;</span><br><span class="line">	<span class="keyword">int</span> fd;</span><br><span class="line">	out = fopen(file,<span class="string">"w+"</span>);</span><br><span class="line">	fd = fileno(out);</span><br><span class="line">	<span class="keyword">if</span>(out == <span class="literal">NULL</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"openFailed!!!!!"</span>);	</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">//printf("res: %d\n",res);</span></span><br><span class="line">	res = ftruncate(fd, <span class="number">500</span>);</span><br><span class="line">	fclose(out);</span><br><span class="line">	<span class="keyword">if</span>(res == <span class="number">0</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"success!\n"</span>);</span><br><span class="line">		out = fopen(<span class="string">"93temp"</span>,<span class="string">"r"</span>);</span><br><span class="line">		fseek(out,<span class="number">0L</span>,SEEK_END);  </span><br><span class="line">    		<span class="keyword">int</span> size=ftell(out);</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"size %d\n"</span>,size);</span><br><span class="line">		fclose(out);</span><br><span class="line">	&#125;<span class="keyword">else</span>&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"fail\n"</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> res;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">updateAsm</span><span class="params">(<span class="keyword">int</span> argc, <span class="keyword">char</span> *argv[])</span></span>&#123;</span><br><span class="line">	FILE *out;</span><br><span class="line">	<span class="keyword">char</span> *file=<span class="string">"93temp"</span>;</span><br><span class="line">	<span class="keyword">int</span> fd;</span><br><span class="line">	<span class="keyword">int</span> res = <span class="number">-2</span>;</span><br><span class="line">	out = fopen(file,<span class="string">"w+"</span>);</span><br><span class="line">	<span class="keyword">if</span>(out == <span class="literal">NULL</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"openFailed!!!!!"</span>);	</span><br><span class="line">	&#125;</span><br><span class="line">	fd = fileno(out);</span><br><span class="line">	<span class="comment">//printf("res: %d\n",res);</span></span><br><span class="line">	<span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">		<span class="string">"mov $0x5D, %%eax\n\t"</span></span></span></span><br><span class="line"><span class="function"><span class="params">		<span class="string">"int $0x80\n\t"</span></span></span></span><br><span class="line"><span class="function"><span class="params">		<span class="string">"mov %%eax, %0\n\t"</span></span></span></span><br><span class="line"><span class="function"><span class="params">		:<span class="string">"=m"</span>(res)</span></span></span><br><span class="line"><span class="function"><span class="params">		:<span class="string">"b"</span>(fd),<span class="string">"c"</span>(<span class="number">200</span>)		</span></span></span><br><span class="line"><span class="function"><span class="params">	)</span></span>;</span><br><span class="line">	fclose(out);</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">"res: %d\n"</span>,res);</span><br><span class="line">	<span class="keyword">if</span>(res == <span class="number">0</span>)&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"Success!\n"</span>);</span><br><span class="line">		out = fopen(file, <span class="string">"r"</span>);</span><br><span class="line">		fseek(out,<span class="number">0L</span>,SEEK_END);  </span><br><span class="line">    		<span class="keyword">int</span> size=ftell(out);</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"size %d\n"</span>,size);</span><br><span class="line">	&#125;<span class="keyword">else</span>&#123;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">"failed!\n"</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	fclose(out);</span><br><span class="line">	<span class="keyword">return</span> res;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    ................</span><br><span class="line">    MenuConfig(<span class="string">"update"</span>,<span class="string">"updateFilesize"</span>, update);</span><br><span class="line">    MenuConfig(<span class="string">"updateAsm"</span>,<span class="string">"updateFilesizeAsm"</span>, updateAsm);</span><br><span class="line">    ExecuteMenu();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>添加Makefile中的开始暂停设置为<br><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190320014959986-1438283299.png" alt></p>
+</li>
+</ul>
+<p>重新make rootfs</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~/LinuxKernel/menu</span><br><span class="line">make rootfs</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>使用gdb跟踪查看</li>
+</ul>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190320015437772-845431348.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190320015819687-460381093.png" alt></p>
+<p>可以看见在使用int 0x80中断之后，CPU会运行arch/x86/entry/entry_32.S中的指令</p>
+<ul>
+<li><p>分析entry_32.S代码</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">#这段代码就是系统调用处理的过程,其它的中断过程也是与此类似</span><br><span class="line">#系统调用就是一个特殊的中断，也存在保护现场和回复现场</span><br><span class="line">ENTRY(system_call)          #这是<span class="number">0</span>x80之后的下一条指令</span><br><span class="line">    RING0_INT_FRAME         # can't unwind into user space anyway</span><br><span class="line">    ASM_CLAC</span><br><span class="line">    pushl_cfi %eax          # save orig_eax</span><br><span class="line">    SAVE_ALL                 #保护现场</span><br><span class="line">    GET_THREAD_INFO(%ebp)</span><br><span class="line">                    # system <span class="keyword">call</span> tracing <span class="keyword">in</span> operation / emulation</span><br><span class="line">    testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)</span><br><span class="line">    jnz syscall_trace_entry</span><br><span class="line">    cmpl $(NR_syscalls), %eax</span><br><span class="line">    jae syscall_badsys</span><br><span class="line"><span class="function">syscall_call:</span></span><br><span class="line"><span class="function">    # 调用了系统调用处理函数，实际的系统调用服务程序</span></span><br><span class="line"><span class="function">    <span class="title">call</span> *<span class="title">sys_call_table</span>(,%<span class="title">eax</span>,4)#定义的系统调用的表，<span class="title">eax</span>传递过来的就是系统调用号，在例子中就是调用的<span class="title">systime</span></span></span><br><span class="line"><span class="function"><span class="title">syscall_after_call</span>:</span></span><br><span class="line"><span class="function">    <span class="title">movl</span> %<span class="title">eax</span>,<span class="title">PT_EAX</span>(%<span class="title">esp</span>)      # <span class="title">store</span> <span class="title">the</span> <span class="title">return</span> <span class="title">value</span></span></span><br><span class="line"><span class="function"><span class="title">syscall_exit</span>:</span></span><br><span class="line"><span class="function">    <span class="title">LOCKDEP_SYS_EXIT</span></span></span><br><span class="line"><span class="function">    <span class="title">DISABLE_INTERRUPTS</span>(<span class="title">CLBR_ANY</span>)    # <span class="title">make</span> <span class="title">sure</span> <span class="title">we</span> <span class="title">don</span>'<span class="title">t</span> <span class="title">miss</span> <span class="title">an</span> <span class="title">interrupt</span></span></span><br><span class="line"><span class="function">                    # <span class="title">setting</span> <span class="title">need_resched</span> <span class="title">or</span> <span class="title">sigpending</span></span></span><br><span class="line"><span class="function">                    # <span class="title">between</span> <span class="title">sampling</span> <span class="title">and</span> <span class="title">the</span> <span class="title">iret</span></span></span><br><span class="line"><span class="function">    <span class="title">TRACE_IRQS_OFF</span></span></span><br><span class="line"><span class="function">    <span class="title">movl</span> <span class="title">TI_flags</span>(%<span class="title">ebp</span>), %<span class="title">ecx</span></span></span><br><span class="line"><span class="function">    <span class="title">testl</span> $<span class="title">_TIF_ALLWORK_MASK</span>, %<span class="title">ecx</span>  # <span class="title">current</span>-&gt;<span class="title">work</span></span></span><br><span class="line"><span class="function">    <span class="title">jne</span> <span class="title">syscall_exit_work</span>          #退出之前,<span class="title">syscall_exit_work</span> </span></span><br><span class="line"><span class="function">    #进入到<span class="title">syscall_exit_work</span>里边有一个进程调度时机</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">restore_all</span>:</span></span><br><span class="line"><span class="function">    <span class="title">TRACE_IRQS_IRET</span></span></span><br><span class="line"><span class="function"><span class="title">restore_all_notrace</span>:        #返回到用户态</span></span><br><span class="line"><span class="function">#<span class="title">ifdef</span> <span class="title">CONFIG_X86_ESPFIX32</span></span></span><br><span class="line"><span class="function">    <span class="title">movl</span> <span class="title">PT_EFLAGS</span>(%<span class="title">esp</span>), %<span class="title">eax</span>  # <span class="title">mix</span> <span class="title">EFLAGS</span>, <span class="title">SS</span> <span class="title">and</span> <span class="title">CS</span></span></span><br><span class="line"><span class="function">    # <span class="title">Warning</span>: <span class="title">PT_OLDSS</span>(%<span class="title">esp</span>) <span class="title">contains</span> <span class="title">the</span> <span class="title">wrong</span>/<span class="title">random</span> <span class="title">values</span> <span class="title">if</span> <span class="title">we</span></span></span><br><span class="line"><span class="function">    # <span class="title">are</span> <span class="title">returning</span> <span class="title">to</span> <span class="title">the</span> <span class="title">kernel</span>.</span></span><br><span class="line"><span class="function">    # <span class="title">See</span> <span class="title">comments</span> <span class="title">in</span> <span class="title">process.c:copy_thread</span>() <span class="title">for</span> <span class="title">details</span>.</span></span><br><span class="line"><span class="function">    <span class="title">movb</span> <span class="title">PT_OLDSS</span>(%<span class="title">esp</span>), %<span class="title">ah</span></span></span><br><span class="line"><span class="function">    <span class="title">movb</span> <span class="title">PT_CS</span>(%<span class="title">esp</span>), %<span class="title">al</span></span></span><br><span class="line"><span class="function">    <span class="title">andl</span> $(<span class="title">X86_EFLAGS_VM</span> | (<span class="title">SEGMENT_TI_MASK</span> &lt;&lt; 8) | <span class="title">SEGMENT_RPL_MASK</span>), %<span class="title">eax</span></span></span><br><span class="line"><span class="function">    <span class="title">cmpl</span> $((<span class="title">SEGMENT_LDT</span> &lt;&lt; 8) | <span class="title">USER_RPL</span>), %<span class="title">eax</span></span></span><br><span class="line"><span class="function">    <span class="title">CFI_REMEMBER_STATE</span></span></span><br><span class="line"><span class="function">    <span class="title">je</span> <span class="title">ldt_ss</span>           # <span class="title">returning</span> <span class="title">to</span> <span class="title">user</span>-<span class="title">space</span> <span class="title">with</span> <span class="title">LDT</span> <span class="title">SS</span></span></span><br><span class="line"><span class="function">#<span class="title">end</span></span></span><br><span class="line"><span class="function">    <span class="title">RESTORE_REGS</span> 4          # <span class="title">skip</span> <span class="title">orig_eax</span>/<span class="title">error_code</span></span></span><br><span class="line"><span class="function"><span class="title">irq_return</span>:</span></span><br><span class="line"><span class="function">    <span class="title">INTERRUPT_RETURN</span>      #<span class="title">iret</span>（宏），系统调用过程到这里结束</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="实验总结"><a href="#实验总结" class="headerlink" title="实验总结"></a>实验总结</h3><p>​    其原理是进程先用适当的值填充寄存器，然后调用一个特殊的指令，这个指令会跳到一个事先定义的内核中的一个位置。在Intel  CPU中，这个由中断0x80实现。硬件知道一旦你跳到这个位置，你就不是在限制模式下运行的用户，而是作为操作系统的内核–由用户态转为内核态。</p>
+<p>​    进程可以跳转到的内核位置叫做sysem_call。这个过程检查系统调用号，这个号码告诉内核进程请求哪种服务。然后，它查看系统调用表(sys_call_table)找到所调用的内核函数入口地址。接着，就调用函数，等返回后，做一些系统检查，最后返回到进程（或到其他进程，如果这个进程时间用尽）。</p>
+<p>​    进程号是由eax寄存器存储的，参数一般是由ebx、ecx、edx、esl、edl、ebp来存储的。</p>
+</li>
+</ul>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/实验一：基于mykernel的一个简单的时间片轮转多道程序内核代码分析/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/实验一：基于mykernel的一个简单的时间片轮转多道程序内核代码分析/" class="post-title-link" itemprop="url">实验一：基于mykernel的一个简单的时间片轮转多道程序内核代码分析</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:14:46 / 修改时间：01:15:12" itemprop="dateCreated datePublished" datetime="2019-05-16T01:14:46+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="实验一：基于mykernel的一个简单的时间片轮转多道程序内核代码分析"><a href="#实验一：基于mykernel的一个简单的时间片轮转多道程序内核代码分析" class="headerlink" title="实验一：基于mykernel的一个简单的时间片轮转多道程序内核代码分析"></a>实验一：基于mykernel的一个简单的时间片轮转多道程序内核代码分析</h1><p>学号293，转载请注明出处</p>
+<p>本实验来源： <a href="https://github.com/mengning/linuxkernel/" target="_blank" rel="noopener">https://github.com/mengning/linuxkernel/</a> </p>
+<h2 id="一、mykernel"><a href="#一、mykernel" class="headerlink" title="一、mykernel"></a>一、mykernel</h2><p>这是孟老师基于linux kernel 3.9.4 source code建立的开发操作系统内核平台。</p>
+<p><a href="https://github.com/mengning/mykernel" target="_blank" rel="noopener">源码</a></p>
+<p>可以根据老师写的readme文件进行部署<br><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317203757630-1171690472.png" alt></p>
+<p>也可以直接在<a href="http://www.shiyanlou.com/courses/195" target="_blank" rel="noopener">实验楼课程</a>中提供的实验环境进行实验</p>
+<h2 id="二-、实验分析"><a href="#二-、实验分析" class="headerlink" title="二 、实验分析"></a>二 、实验分析</h2><p>本实验采取在实验楼提供的环境中进行实验</p>
+<p>首先可以通过以下命令，查看QEMU虚拟机</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> LinuxKernel/linux-<span class="number">3</span>.<span class="number">9</span>.<span class="number">4</span></span><br><span class="line">qemu -kernel arch/x86/boot/bzImage</span><br></pre></td></tr></table></figure>
+
+<p>结果如下：<br><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317203813934-917433147.png" alt></p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> mykernel</span><br></pre></td></tr></table></figure>
+
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317203841874-1687364938.png" alt></p>
+<p>可以看到在<strong>mymain.c</strong>中的 my_start_kernel函数中：</p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317203907237-983221974.png" alt></p>
+<p>即为一个循环，不停的输出my_start_kernel here.</p>
+<p>然后查看<strong>myinterrupt.c</strong></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317203915166-18693393.png" alt></p>
+<p>类似也是一个my_timer_handler函数</p>
+<p>输出</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">"\n&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;my_timer_handler here&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;\n\n"</span><br></pre></td></tr></table></figure>
+
+<p>以上也就是我们看到的运行的qemu得到的结果，不停地输出这两个字符串。</p>
+<h2 id="三、实现一个简单的时间片轮转多道程序"><a href="#三、实现一个简单的时间片轮转多道程序" class="headerlink" title="三、实现一个简单的时间片轮转多道程序"></a>三、实现一个简单的时间片轮转多道程序</h2><p>可以使用mykernel中提供的示例代码，这里我们通过git来下载源代码文件</p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317203928070-916832155.png" alt></p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317203936017-34237161.png" alt></p>
+<p>此时已经将clone下来的我们需要的文件移动到了Linkernel/linux3.9.4/mykernel中了</p>
+<p>然后需要重新编译下工程。</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">make allnoconfig</span><br><span class="line">make -j4</span><br><span class="line">qemu -kernel arch/x86/boot/bzImage</span><br></pre></td></tr></table></figure>
+
+<p>结果如下：</p>
+<p><img src="https://img2018.cnblogs.com/blog/1510236/201903/1510236-20190317210155923-1601844081.png" alt></p>
+<h1 id="四、源代码分析"><a href="#四、源代码分析" class="headerlink" title="四、源代码分析"></a>四、源代码分析</h1><p>主要是三个文件mypcb.h mymain.c myinterrupt.c</p>
+<p>###在mypcb.h中主要是进程控制块PCB的结构体定义</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> *  linux/mykernel/mypcb.h</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  Kernel internal PCB types</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  Copyright (C) 2013  Mengning</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> MAX_TASK_NUM        4</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> KERNEL_STACK_SIZE   1024*2  <span class="comment">//unsigned long  (这个地方源代码有错误不能用#注释)</span></span></span><br><span class="line"><span class="comment">/* CPU-specific state of this task */</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Thread</span> &#123;</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>		ip;</span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>		sp;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> <span class="title">PCB</span>&#123;</span></span><br><span class="line">    <span class="keyword">int</span> pid;</span><br><span class="line">    <span class="keyword">volatile</span> <span class="keyword">long</span> state;	<span class="comment">/* -1 unrunnable, 0 runnable, &gt;0 stopped */</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span> <span class="built_in">stack</span>[KERNEL_STACK_SIZE];</span><br><span class="line">    <span class="comment">/* CPU-specific state of this task */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">Thread</span> <span class="title">thread</span>;</span></span><br><span class="line">    <span class="keyword">unsigned</span> <span class="keyword">long</span>	task_entry;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">PCB</span> *<span class="title">next</span>;</span></span><br><span class="line">&#125;tPCB;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">my_schedule</span><span class="params">(<span class="keyword">void</span>)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>Thread结构体，用于存储当前线程的ip，sp</p>
+<p>pid是进程号，state 进程状态，stack进程使用的栈， thread当前的线程信息，task_entry进程入口函数，next：指向下一PCB（假设进程是以链表的形式连接起来的）</p>
+<p>这里也声明了my_schedule函数，实现在my_interrupt.c,在main.c中的各个进程函数会根据一个全局变量的状态来决定是否调用它，从而实现主动调度。</p>
+<h3 id="在mymain-c中，初始化各个进程并启动0号进程"><a href="#在mymain-c中，初始化各个进程并启动0号进程" class="headerlink" title="在mymain.c中，初始化各个进程并启动0号进程"></a>在mymain.c中，初始化各个进程并启动0号进程</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">	 *  linux/mykernel/mymain.c</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 *  Kernel internal my_start_kernel</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 *  Copyright (C) 2013  Mengning</span></span><br><span class="line"><span class="comment">	 *</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	<span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/types.h&gt;</span></span></span><br><span class="line">	<span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/string.h&gt;</span></span></span><br><span class="line">	<span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/ctype.h&gt;</span></span></span><br><span class="line">	<span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/tty.h&gt;</span></span></span><br><span class="line">	<span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/vmalloc.h&gt;</span></span></span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line">	<span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"mypcb.h"</span></span></span><br><span class="line"> </span><br><span class="line">	tPCB task[MAX_TASK_NUM];</span><br><span class="line">	tPCB * my_current_task = <span class="literal">NULL</span>;</span><br><span class="line">	<span class="keyword">volatile</span> <span class="keyword">int</span> my_need_sched = <span class="number">0</span>;</span><br><span class="line"> </span><br><span class="line">	<span class="function"><span class="keyword">void</span> <span class="title">my_process</span><span class="params">(<span class="keyword">void</span>)</span></span>;</span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line">	<span class="keyword">void</span> __<span class="function">init <span class="title">my_start_kernel</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function">	</span>&#123;</span><br><span class="line">		<span class="keyword">int</span> pid = <span class="number">0</span>;</span><br><span class="line">		<span class="keyword">int</span> i;</span><br><span class="line">		<span class="comment">/* Initialize process 0*/</span></span><br><span class="line">		task[pid].pid = pid;</span><br><span class="line">		task[pid].state = <span class="number">0</span>;<span class="comment">/* -1 unrunnable, 0 runnable, &gt;0 stopped */</span></span><br><span class="line">		task[pid].task_entry = task[pid].thread.ip = (<span class="keyword">unsigned</span> <span class="keyword">long</span>)my_process;</span><br><span class="line">		task[pid].thread.sp = (<span class="keyword">unsigned</span> <span class="keyword">long</span>)&amp;task[pid].<span class="built_in">stack</span>[KERNEL_STACK_SIZE<span class="number">-1</span>];</span><br><span class="line">		task[pid].next = &amp;task[pid];</span><br><span class="line">		<span class="comment">/*fork more process */</span></span><br><span class="line">		<span class="keyword">for</span>(i=<span class="number">1</span>;i&lt;MAX_TASK_NUM;i++)</span><br><span class="line">		&#123;</span><br><span class="line">			<span class="built_in">memcpy</span>(&amp;task[i],&amp;task[<span class="number">0</span>],<span class="keyword">sizeof</span>(tPCB));</span><br><span class="line">			task[i].pid = i;</span><br><span class="line">			task[i].state = <span class="number">-1</span>;</span><br><span class="line">			task[i].thread.sp = (<span class="keyword">unsigned</span> <span class="keyword">long</span>)&amp;task[i].<span class="built_in">stack</span>[KERNEL_STACK_SIZE<span class="number">-1</span>];</span><br><span class="line">			task[i].next = task[i<span class="number">-1</span>].next;</span><br><span class="line">			task[i<span class="number">-1</span>].next = &amp;task[i];</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="comment">/* start process 0 by task[0] */</span></span><br><span class="line">		pid = <span class="number">0</span>;</span><br><span class="line">		my_current_task = &amp;task[pid];</span><br><span class="line">		<span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">			<span class="string">"movl %1,%%esp\n\t"</span> 	<span class="comment">/* set task[pid].thread.sp to esp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">			<span class="string">"pushl %1\n\t"</span> 	        <span class="comment">/* push ebp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">			<span class="string">"pushl %0\n\t"</span> 	        <span class="comment">/* push task[pid].thread.ip */</span></span></span></span><br><span class="line"><span class="function"><span class="params">			<span class="string">"ret\n\t"</span> 	            <span class="comment">/* pop task[pid].thread.ip to eip */</span></span></span></span><br><span class="line"><span class="function"><span class="params">			<span class="string">"popl %%ebp\n\t"</span></span></span></span><br><span class="line"><span class="function"><span class="params">			: </span></span></span><br><span class="line"><span class="function"><span class="params">			: <span class="string">"c"</span> (task[pid].thread.ip),<span class="string">"d"</span> (task[pid].thread.sp)	<span class="comment">/* input c or d mean %ecx/%edx*/</span></span></span></span><br><span class="line"><span class="function"><span class="params">		)</span></span>;</span><br><span class="line">	&#125;   </span><br><span class="line">	<span class="function"><span class="keyword">void</span> <span class="title">my_process</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function">	</span>&#123;</span><br><span class="line">		<span class="keyword">int</span> i = <span class="number">0</span>;</span><br><span class="line">		<span class="keyword">while</span>(<span class="number">1</span>)</span><br><span class="line">		&#123;</span><br><span class="line">			i++;</span><br><span class="line">			<span class="keyword">if</span>(i%<span class="number">10000000</span> == <span class="number">0</span>)</span><br><span class="line">			&#123;</span><br><span class="line">				printk(KERN_NOTICE <span class="string">"this is process %d -\n"</span>,my_current_task-&gt;pid);</span><br><span class="line">				<span class="keyword">if</span>(my_need_sched == <span class="number">1</span>)</span><br><span class="line">				&#123;</span><br><span class="line">					my_need_sched = <span class="number">0</span>;</span><br><span class="line">					my_schedule();</span><br><span class="line">				&#125;</span><br><span class="line">				printk(KERN_NOTICE <span class="string">"this is process %d +\n"</span>,my_current_task-&gt;pid);</span><br><span class="line">			&#125;     </span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br></pre></td></tr></table></figure>
+
+<p>正如前文所述，这里的函数 my_start_kernel 是系统启动后，最先调用的函数，在这个函数里完成了0号进程的初始化和启动，并创建了其它的进程PCB，以方便后面的调度。在模拟系统里，每个进程的函数代码都是一样的，即 my_process 函数，my_process 在执行的时候，会打印出当前进程的 id，从而使得我们能够看到当前哪个进程正在执行。</p>
+<p>另外，在 my_process 也会检查一个全局标志变量 my_need_sched，一旦发现其值为 1 ，就调用 my_schedule 完成进程的调度。</p>
+<p>0号线程的启动，采用了内联汇编代码完成，详细参见源码中的注释。</p>
+<h3 id="在myinterrupt-c：时钟中断和进程调度的算法"><a href="#在myinterrupt-c：时钟中断和进程调度的算法" class="headerlink" title="在myinterrupt.c：时钟中断和进程调度的算法"></a>在myinterrupt.c：时钟中断和进程调度的算法</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> *  linux/mykernel/myinterrupt.c</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  Kernel internal my_timer_handler</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> *  Copyright (C) 2013  Mengning</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/types.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/ctype.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/tty.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;linux/vmalloc.h&gt;</span></span></span><br><span class="line"> </span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"mypcb.h"</span></span></span><br><span class="line"> </span><br><span class="line"><span class="keyword">extern</span> tPCB task[MAX_TASK_NUM];</span><br><span class="line"><span class="keyword">extern</span> tPCB * my_current_task;</span><br><span class="line"><span class="keyword">extern</span> <span class="keyword">volatile</span> <span class="keyword">int</span> my_need_sched;</span><br><span class="line"><span class="keyword">volatile</span> <span class="keyword">int</span> time_count = <span class="number">0</span>;</span><br><span class="line"> </span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Called by timer interrupt.</span></span><br><span class="line"><span class="comment"> * it runs in the name of current running process,</span></span><br><span class="line"><span class="comment"> * so it use kernel stack of current running process</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">my_timer_handler</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">if</span> 1</span></span><br><span class="line">    <span class="keyword">if</span>(time_count%<span class="number">1000</span> == <span class="number">0</span> &amp;&amp; my_need_sched != <span class="number">1</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        printk(KERN_NOTICE <span class="string">"&gt;&gt;&gt;my_timer_handler here&lt;&lt;&lt;\n"</span>);</span><br><span class="line">        my_need_sched = <span class="number">1</span>;</span><br><span class="line">    &#125; </span><br><span class="line">    time_count ++ ;  </span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line">    <span class="keyword">return</span>;  	</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">my_schedule</span><span class="params">(<span class="keyword">void</span>)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    tPCB * next;</span><br><span class="line">    tPCB * prev;</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">if</span>(my_current_task == <span class="literal">NULL</span> </span><br><span class="line">        || my_current_task-&gt;next == <span class="literal">NULL</span>)</span><br><span class="line">    &#123;</span><br><span class="line">    	<span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    printk(KERN_NOTICE <span class="string">"&gt;&gt;&gt;my_schedule&lt;&lt;&lt;\n"</span>);</span><br><span class="line">    <span class="comment">/* schedule */</span></span><br><span class="line">    next = my_current_task-&gt;next;</span><br><span class="line">    prev = my_current_task;</span><br><span class="line">    <span class="keyword">if</span>(next-&gt;state == <span class="number">0</span>)<span class="comment">/* -1 unrunnable, 0 runnable, &gt;0 stopped */</span></span><br><span class="line">    &#123;</span><br><span class="line">    	<span class="comment">/* switch to next process */</span></span><br><span class="line">    	<span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(	</span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"pushl %%ebp\n\t"</span> 	    <span class="comment">/* save ebp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"movl %%esp,%0\n\t"</span> 	<span class="comment">/* save esp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"movl %2,%%esp\n\t"</span>     <span class="comment">/* restore  esp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"movl $1f,%1\n\t"</span>       <span class="comment">/* save eip */</span>	</span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"pushl %3\n\t"</span> </span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"ret\n\t"</span> 	            <span class="comment">/* restore  eip */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"1:\t"</span>                  <span class="comment">/* next process start here */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"popl %%ebp\n\t"</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	: <span class="string">"=m"</span> (prev-&gt;thread.sp),<span class="string">"=m"</span> (prev-&gt;thread.ip)</span></span></span><br><span class="line"><span class="function"><span class="params">        	: <span class="string">"m"</span> (next-&gt;thread.sp),<span class="string">"m"</span> (next-&gt;thread.ip)</span></span></span><br><span class="line"><span class="function"><span class="params">    	)</span></span>; </span><br><span class="line">    	my_current_task = next; </span><br><span class="line">    	printk(KERN_NOTICE <span class="string">"&gt;&gt;&gt;switch %d to %d&lt;&lt;&lt;\n"</span>,prev-&gt;pid,next-&gt;pid);   	</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        next-&gt;state = <span class="number">0</span>;</span><br><span class="line">        my_current_task = next;</span><br><span class="line">        printk(KERN_NOTICE <span class="string">"&gt;&gt;&gt;switch %d to %d&lt;&lt;&lt;\n"</span>,prev-&gt;pid,next-&gt;pid);</span><br><span class="line">    	<span class="comment">/* switch to new process */</span></span><br><span class="line">    	<span class="function"><span class="keyword">asm</span> <span class="title">volatile</span><span class="params">(	</span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"pushl %%ebp\n\t"</span> 	    <span class="comment">/* save ebp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"movl %%esp,%0\n\t"</span> 	<span class="comment">/* save esp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"movl %2,%%esp\n\t"</span>     <span class="comment">/* restore  esp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"movl %2,%%ebp\n\t"</span>     <span class="comment">/* restore  ebp */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"movl $1f,%1\n\t"</span>       <span class="comment">/* save eip */</span>	</span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"pushl %3\n\t"</span> </span></span></span><br><span class="line"><span class="function"><span class="params">        	<span class="string">"ret\n\t"</span> 	            <span class="comment">/* restore  eip */</span></span></span></span><br><span class="line"><span class="function"><span class="params">        	: <span class="string">"=m"</span> (prev-&gt;thread.sp),<span class="string">"=m"</span> (prev-&gt;thread.ip)</span></span></span><br><span class="line"><span class="function"><span class="params">        	: <span class="string">"m"</span> (next-&gt;thread.sp),<span class="string">"m"</span> (next-&gt;thread.ip)</span></span></span><br><span class="line"><span class="function"><span class="params">    	)</span></span>;          </span><br><span class="line">    &#125;   </span><br><span class="line">    <span class="keyword">return</span>;	</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里 my_timer_handler 函数会被内核周期性的调用，每调用1000次，就去将全局变量my_need_sched的值修改为1，通知正在执行的进程执行调度程序my_schedule。在my_schedule函数中，完成进程的切换。进程的切换分两种情况，一种情况是下一个进程没有被调度过，另外一种情况是下一个进程被调度过，可以通过下一个进程的state知道其状态。进程切换依然是通过内联汇编代码实现，无非是保存旧进程的eip和堆栈，将新进程的eip和堆栈的值存入对应的寄存器中，详见代码中的注释。</p>
+<h2 id="五、总结"><a href="#五、总结" class="headerlink" title="五、总结"></a>五、总结</h2><p>在本次的学习和实验中，了解了操作系统中的进程的调度机制与其中断机制，了解一下C语言内嵌汇编的方法。</p>
+<p>操作系统通过其对硬件的控制，合理分配计算机资源，实现多任务处理，使用户更加容易的操作计算机。</p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/PAT乙级刷题-c-20题以后/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/PAT乙级刷题-c-20题以后/" class="post-title-link" itemprop="url">PAT乙级刷题(c++/20题以后)</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:13:51 / 修改时间：01:14:18" itemprop="dateCreated datePublished" datetime="2019-05-16T01:13:51+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>大概是2018年6月份左右刷完的，含有20题以后的基本所有题目的代码吧<br><a href="https://files.cnblogs.com/files/pcmpcm/pat_study.zip" target="_blank" rel="noopener">源代码下载地址</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Android学习笔记之IntentService/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/Android学习笔记之IntentService/" class="post-title-link" itemprop="url">Android学习笔记之IntentService</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:12:47 / 修改时间：01:13:16" itemprop="dateCreated datePublished" datetime="2019-05-16T01:12:47+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="Android学习笔记之IntentService"><a href="#Android学习笔记之IntentService" class="headerlink" title="Android学习笔记之IntentService"></a>Android学习笔记之IntentService</h1><p>###IntentService是继承并处理异步请求的一个类，IntentService内有一个工作线程来处理耗时操作，启动IntentService的方式和启动传统的Service一样，同时，当任务执行完后,IntentService会自动停止，而不需要我们手动去控制或stopSelf()。另外，可以启动IntentService多次，而每一个耗时操作会以工作队列的方式在IntentService的onHandleIntent回调方法中执行，并且，每次只会执行一个工作线程，执行完第一个再执行第二个，以此类推。</p>
+<p>这里我使用IntentService来输出一个Notification。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> es.source.code.service;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> android.app.IntentService;</span><br><span class="line"><span class="keyword">import</span> android.app.Notification;</span><br><span class="line"><span class="keyword">import</span> android.app.NotificationChannel;</span><br><span class="line"><span class="keyword">import</span> android.app.NotificationManager;</span><br><span class="line"><span class="keyword">import</span> android.app.PendingIntent;</span><br><span class="line"><span class="keyword">import</span> android.content.Context;</span><br><span class="line"><span class="keyword">import</span> android.content.Intent;</span><br><span class="line"><span class="keyword">import</span> android.os.Binder;</span><br><span class="line"><span class="keyword">import</span> android.os.Build;</span><br><span class="line"><span class="keyword">import</span> android.os.Bundle;</span><br><span class="line"><span class="keyword">import</span> android.os.IBinder;</span><br><span class="line"><span class="keyword">import</span> android.support.v4.app.NotificationCompat;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> es.source.code.activity.FoodDetailed;</span><br><span class="line"><span class="keyword">import</span> es.source.code.activity.R;</span><br><span class="line"><span class="keyword">import</span> es.source.code.model.Food;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">UpdateService</span> <span class="keyword">extends</span> <span class="title">IntentService</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">UpdateService</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(<span class="string">"UpdateService"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">UpdateService</span><span class="params">(String name)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(name);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onHandleIntent</span><span class="params">(Intent intent)</span> </span>&#123;</span><br><span class="line">        <span class="comment">//update foodview;</span></span><br><span class="line">        System.out.println(<span class="string">"onHandleIntent"</span>);</span><br><span class="line">        Bundle bundle =  (Bundle)intent.getBundleExtra(<span class="string">"new food"</span>);</span><br><span class="line">        String name = (String)bundle.get(<span class="string">"name"</span>);</span><br><span class="line">        <span class="keyword">int</span> storage = (<span class="keyword">int</span>)bundle.get(<span class="string">"storage"</span>);</span><br><span class="line">        System.out.println(name+storage);</span><br><span class="line">        Food food = <span class="keyword">new</span> Food(<span class="string">"new food"</span>, <span class="number">13</span>, <span class="number">10</span>, R.drawable.order_item_logo,</span><br><span class="line">                <span class="keyword">false</span>);</span><br><span class="line">        sendNotification(food);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">sendNotification</span><span class="params">(Food food)</span></span>&#123;</span><br><span class="line">        NotificationManager notificationManager =</span><br><span class="line">                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);</span><br><span class="line">        Notification notification = <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">if</span> (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.O) &#123;</span><br><span class="line">            NotificationChannel mChannel = <span class="keyword">new</span> NotificationChannel(<span class="string">"channel_01"</span>, <span class="string">"name"</span>,</span><br><span class="line">                    NotificationManager.IMPORTANCE_HIGH);</span><br><span class="line">            Intent resultIntent = <span class="keyword">new</span> Intent(<span class="keyword">this</span>,FoodDetailed.class);</span><br><span class="line">            <span class="comment">//intent可以携带参数到指定页面的，这里省略</span></span><br><span class="line">            <span class="comment">//resultIntent.putExtra(key,value);</span></span><br><span class="line">            <span class="comment">//添加数据</span></span><br><span class="line">            resultIntent.putExtra(<span class="string">"newfood"</span>, food);</span><br><span class="line">            PendingIntent pendingIntent = PendingIntent.getActivity(<span class="keyword">this</span>,<span class="number">0</span>,</span><br><span class="line">                    resultIntent,PendingIntent.FLAG_IMMUTABLE);</span><br><span class="line">            notificationManager.createNotificationChannel(mChannel);<span class="comment">//注意</span></span><br><span class="line">            notification = <span class="keyword">new</span> Notification.Builder(<span class="keyword">this</span>)</span><br><span class="line">                    .setChannelId(<span class="string">"channel_01"</span>)</span><br><span class="line">                    .setContentTitle(<span class="string">"新菜"</span>)</span><br><span class="line">                    .setContentText(<span class="string">"New food.name:"</span>+food.getFoodName()+</span><br><span class="line">                            <span class="string">" price:"</span> + food.getPrice() +<span class="string">" kind:"</span>+<span class="string">"coldfood"</span>)</span><br><span class="line">                    .setSmallIcon(R.mipmap.ic_launcher)</span><br><span class="line">                    .setContentIntent(pendingIntent)</span><br><span class="line">                    .build();</span><br><span class="line">            notificationManager.notify(<span class="number">1</span>, notification);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            Intent resultIntent = <span class="keyword">new</span> Intent(<span class="keyword">this</span>,FoodDetailed.class);</span><br><span class="line">            <span class="comment">//intent可以携带参数到指定页面的，这里省略</span></span><br><span class="line">            <span class="comment">//resultIntent.putExtra(key,value);</span></span><br><span class="line">            PendingIntent pendingIntent = PendingIntent.getActivity(<span class="keyword">this</span>,<span class="number">0</span>,</span><br><span class="line">                    resultIntent,PendingIntent.FLAG_UPDATE_CURRENT);</span><br><span class="line"></span><br><span class="line">            NotificationCompat.Builder notificationBuilder = <span class="keyword">new</span> NotificationCompat.Builder(<span class="keyword">this</span>)</span><br><span class="line">                    .setContentTitle(<span class="string">"新菜"</span>)</span><br><span class="line">                    .setContentText(<span class="string">"New food.name:"</span>+food.getFoodName()+</span><br><span class="line">                            <span class="string">" price:"</span> + food.getPrice() +<span class="string">" kind:"</span>+<span class="string">"coldfood"</span>)</span><br><span class="line">                    .setSmallIcon(R.mipmap.ic_launcher)</span><br><span class="line">                    .setOngoing(<span class="keyword">true</span>)</span><br><span class="line">                    .setChannelId(<span class="string">"channel_01"</span>)<span class="comment">//无效</span></span><br><span class="line">                    .setContentIntent(pendingIntent);</span><br><span class="line">            notification = notificationBuilder.build();</span><br><span class="line">            notificationManager.notify(<span class="number">1</span>, notification);</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="注意这里的"><a href="#注意这里的" class="headerlink" title="注意这里的"></a>注意这里的</h3><p>notification因为版本的原因android8.0以上需要使用channel参数</p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能/" class="post-title-link" itemprop="url">Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:11:45 / 修改时间：01:12:14" itemprop="dateCreated datePublished" datetime="2019-05-16T01:11:45+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能"><a href="#Android学习笔记之实现自动拨打电话，发短信，发邮件-QQ邮件-功能" class="headerlink" title="Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能"></a>Android学习笔记之实现自动拨打电话，发短信，发邮件(QQ邮件)功能</h1><h3 id="拨打电话"><a href="#拨打电话" class="headerlink" title="拨打电话"></a>拨打电话</h3><p>java源文件中添加</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent(Intent.ACTION_CALL, Uri.parse(<span class="string">"tel:5554"</span>));</span><br><span class="line">                startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p>manifest中加入</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;uses-permission android:name="android.permission.CALL_PHONE"&gt;&lt;/uses-permission&gt;</span><br></pre></td></tr></table></figure>
+
+<p>测试时注意android系统是否允许了权限，否则可能会报错</p>
+<h3 id="发短信"><a href="#发短信" class="headerlink" title="发短信"></a>发短信</h3><p>java源文件中添加</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">String message = <span class="string">"test scos helper"</span>;</span><br><span class="line">SmsManager sms = SmsManager.getDefault();</span><br><span class="line">sms.sendTextMessage(<span class="string">"5554"</span>, <span class="keyword">null</span>, message, <span class="keyword">null</span>, <span class="keyword">null</span>);</span><br><span class="line">Toast.makeText(<span class="keyword">this</span>,<span class="string">"求助短信发送成功"</span>,Toast.LENGTH_SHORT).show();</span><br><span class="line"><span class="comment">/*Intent sentIntent = new Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:5554"));</span></span><br><span class="line"><span class="comment">sentIntent.putExtra("sms_body", message);</span></span><br><span class="line"><span class="comment">startActivity(sentIntent); //这个方式需要手动确认发送</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+
+<p>manifest中加入</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;uses-permission android:name="android.permission.SEND_SMS"&gt;&lt;/uses-permission&gt;</span><br></pre></td></tr></table></figure>
+
+<p>测试时注意android系统是否允许了权限，否则可能会报错</p>
+<h3 id="发邮件"><a href="#发邮件" class="headerlink" title="发邮件"></a>发邮件</h3><p>这里我才用了javax.mail包</p>
+<p>需要自行下载相关jar包</p>
+<p>gradle下添加</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">dependencies &#123;</span><br><span class="line">    implementation 'com.sun.mail:android-mail:<span class="number">1</span>.<span class="number">6</span>.<span class="number">0</span>'</span><br><span class="line">    implementation 'com.sun.mail:android-activation:<span class="number">1</span>.<span class="number">6</span>.<span class="number">0</span>'</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再Sync也行</p>
+<p>MailSender, （用了好几个内部类，毕竟只是为了实现发一个test邮件功能）</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> javax.mail.Authenticator;</span><br><span class="line"><span class="keyword">import</span> javax.mail.MessagingException;</span><br><span class="line"><span class="keyword">import</span> javax.mail.PasswordAuthentication;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.Date;</span><br><span class="line"><span class="keyword">import</span> java.util.Properties;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> javax.mail.Address;</span><br><span class="line"><span class="keyword">import</span> javax.mail.Message;</span><br><span class="line"><span class="keyword">import</span> javax.mail.Session;</span><br><span class="line"><span class="keyword">import</span> javax.mail.Transport;</span><br><span class="line"><span class="keyword">import</span> javax.mail.internet.InternetAddress;</span><br><span class="line"><span class="keyword">import</span> javax.mail.internet.MimeMessage;</span><br><span class="line"><span class="keyword">import</span> javax.mail.internet.AddressException;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MailSender</span> </span>&#123;</span><br><span class="line">    MailSenderInfo mailSenderInfo = <span class="keyword">new</span> MailSenderInfo();</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">run</span><span class="params">()</span></span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span>.sendTextMail(mailSenderInfo);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">sendTextMail</span><span class="params">(<span class="keyword">final</span> MailSenderInfo mailInfo)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 判断是否需要身份认证</span></span><br><span class="line">        MyAuthenticator authenticator = <span class="keyword">null</span>;</span><br><span class="line">        Properties pro = mailInfo.getProperties();</span><br><span class="line">        <span class="keyword">if</span> (mailInfo.isValidate()) &#123;</span><br><span class="line">            <span class="comment">// 如果需要身份认证，则创建一个密码验证器</span></span><br><span class="line">            authenticator = <span class="keyword">new</span> MyAuthenticator(mailInfo.getUserName(), mailInfo.getPassword());</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 根据邮件会话属性和密码验证器构造一个发送邮件的session</span></span><br><span class="line">        Session sendMailSession = Session.getDefaultInstance(pro, authenticator);</span><br><span class="line"></span><br><span class="line"><span class="comment">//    Session sendMailSession = Session.getInstance(pro, new Authenticator() &#123;</span></span><br><span class="line"><span class="comment">//      @Override</span></span><br><span class="line"><span class="comment">//      protected PasswordAuthentication getPasswordAuthentication() &#123;</span></span><br><span class="line"><span class="comment">//        return new PasswordAuthentication(mailInfo.getUserName(),mailInfo.getPassword());</span></span><br><span class="line"><span class="comment">//      &#125;</span></span><br><span class="line"><span class="comment">//    &#125;);</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 根据session创建一个邮件消息</span></span><br><span class="line">            Message mailMessage = <span class="keyword">new</span> MimeMessage(sendMailSession);</span><br><span class="line">            <span class="comment">// 创建邮件发送者地址</span></span><br><span class="line">            Address from = <span class="keyword">new</span> InternetAddress(mailInfo.getFromAddress());</span><br><span class="line">            <span class="comment">// 设置邮件消息的发送者</span></span><br><span class="line">            mailMessage.setFrom(from);</span><br><span class="line">            <span class="comment">// 创建邮件的接收者地址，并设置到邮件消息中</span></span><br><span class="line">            Address to = <span class="keyword">new</span> InternetAddress(mailInfo.getToAddress());</span><br><span class="line">            mailMessage.setRecipient(Message.RecipientType.TO, to);</span><br><span class="line">            <span class="comment">// 设置邮件消息的主题</span></span><br><span class="line">            mailMessage.setSubject(mailInfo.getSubject());</span><br><span class="line">            <span class="comment">// 设置邮件消息发送的时间</span></span><br><span class="line">            mailMessage.setSentDate(<span class="keyword">new</span> Date());</span><br><span class="line"></span><br><span class="line">            <span class="comment">// 设置邮件消息的主要内容</span></span><br><span class="line">            String mailContent = mailInfo.getContent();</span><br><span class="line">            mailMessage.setText(mailContent);</span><br><span class="line">            <span class="comment">// 发送邮件</span></span><br><span class="line">            Transport.send(mailMessage);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (MessagingException ex) &#123;</span><br><span class="line">            ex.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MailSenderInfo</span> </span>&#123;</span><br><span class="line">        <span class="comment">// 发送邮件的服务器的IP和端口</span></span><br><span class="line">        <span class="keyword">private</span> String mailServerHost;</span><br><span class="line">        <span class="comment">// 发送邮件服务器端口,有些邮箱可能不是25</span></span><br><span class="line">        <span class="keyword">private</span> String mailServerPort = <span class="string">"25"</span>;</span><br><span class="line">        <span class="comment">// 邮件发送者的地址</span></span><br><span class="line">        <span class="keyword">private</span> String fromAddress;</span><br><span class="line">        <span class="comment">// 邮件接收者的地址</span></span><br><span class="line">        <span class="keyword">private</span> String toAddress;</span><br><span class="line">        <span class="comment">// 登陆邮件发送服务器的用户名和密码</span></span><br><span class="line">        <span class="keyword">private</span> String userName;</span><br><span class="line">        <span class="keyword">private</span> String password;</span><br><span class="line">        <span class="comment">// 是否需要身份验证</span></span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">boolean</span> validate = <span class="keyword">false</span>;</span><br><span class="line">        <span class="comment">// 邮件主题</span></span><br><span class="line">        <span class="keyword">private</span> String subject;</span><br><span class="line">        <span class="comment">// 邮件的文本内容</span></span><br><span class="line">        <span class="keyword">private</span> String content;</span><br><span class="line">        <span class="comment">// 邮件附件的文件名</span></span><br><span class="line">        <span class="keyword">private</span> String[] attachFileNames;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">        <span class="comment">/**</span></span><br><span class="line"><span class="comment">         * 获得邮件会话属性</span></span><br><span class="line"><span class="comment">         */</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> Properties <span class="title">getProperties</span><span class="params">()</span></span>&#123;</span><br><span class="line">            Properties p = <span class="keyword">new</span> Properties();</span><br><span class="line">            p.put(<span class="string">"mail.smtp.host"</span>, <span class="keyword">this</span>.mailServerHost);</span><br><span class="line">            p.put(<span class="string">"mail.smtp.port"</span>, <span class="keyword">this</span>.mailServerPort);</span><br><span class="line">            p.put(<span class="string">"mail.smtp.auth"</span>, validate ? <span class="string">"true"</span> : <span class="string">"false"</span>);</span><br><span class="line">            <span class="keyword">return</span> p;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">MailSenderInfo</span><span class="params">()</span></span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.mailServerHost = <span class="string">"smtp.qq.com"</span>; <span class="comment">//qq邮件的服务器地址</span></span><br><span class="line">            <span class="keyword">this</span>.mailServerPort = <span class="string">"25"</span>;</span><br><span class="line">            <span class="keyword">this</span>.validate = <span class="keyword">true</span>;</span><br><span class="line">            <span class="comment">//注意需要开启邮箱的SMTP/POP3/IMAP 的服务</span></span><br><span class="line">            <span class="keyword">this</span>.password = <span class="string">"......."</span>; <span class="comment">//这里密码应设置为qq邮箱的第三方授权码</span></span><br><span class="line">            <span class="keyword">this</span>.userName = <span class="string">"....@qq.com"</span>;<span class="comment">//qq邮箱账户名</span></span><br><span class="line">            <span class="keyword">this</span>.toAddress = <span class="string">"....@qq.com"</span>;<span class="comment">//发到的qq邮箱账户</span></span><br><span class="line">            <span class="keyword">this</span>.fromAddress = <span class="string">"@qq.com"</span>;<span class="comment">//发送邮件的qq邮箱地址</span></span><br><span class="line">            <span class="keyword">this</span>.subject = <span class="string">"test"</span>;</span><br><span class="line">            <span class="keyword">this</span>.content = <span class="string">"This is a test of mailsender.\n If you get this email, please return \"succeeded\" to"</span> +</span><br><span class="line">                    <span class="string">"your father!"</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getMailServerHost</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> mailServerHost;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setMailServerHost</span><span class="params">(String mailServerHost)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.mailServerHost = mailServerHost;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getMailServerPort</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> mailServerPort;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setMailServerPort</span><span class="params">(String mailServerPort)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.mailServerPort = mailServerPort;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isValidate</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> validate;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setValidate</span><span class="params">(<span class="keyword">boolean</span> validate)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.validate = validate;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> String[] getAttachFileNames() &#123;</span><br><span class="line">            <span class="keyword">return</span> attachFileNames;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setAttachFileNames</span><span class="params">(String[] fileNames)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.attachFileNames = fileNames;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getFromAddress</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> fromAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setFromAddress</span><span class="params">(String fromAddress)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.fromAddress = fromAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getPassword</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> password;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setPassword</span><span class="params">(String password)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.password = password;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getToAddress</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> toAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setToAddress</span><span class="params">(String toAddress)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.toAddress = toAddress;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getUserName</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> userName;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setUserName</span><span class="params">(String userName)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.userName = userName;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getSubject</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> subject;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setSubject</span><span class="params">(String subject)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.subject = subject;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> String <span class="title">getContent</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> content;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setContent</span><span class="params">(String textContent)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.content = textContent;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MyAuthenticator</span> <span class="keyword">extends</span> <span class="title">Authenticator</span> </span>&#123;</span><br><span class="line">        String userName = <span class="keyword">null</span>;</span><br><span class="line">        String password = <span class="keyword">null</span>;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">MyAuthenticator</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">public</span> <span class="title">MyAuthenticator</span><span class="params">(String username, String password)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">this</span>.userName = username;</span><br><span class="line">            <span class="keyword">this</span>.password = password;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="function"><span class="keyword">protected</span> PasswordAuthentication <span class="title">getPasswordAuthentication</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">new</span> PasswordAuthentication(userName, password);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>使用的话run就可以了</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">MailSender sender = <span class="keyword">new</span> MailSender();</span><br><span class="line">sender.run();</span><br></pre></td></tr></table></figure>
+
+<p>注意manifest下添加权限</p>
+<figure class="highlight cmd"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;uses-permission android:name="android.permission.INTERNET"&gt;&lt;/uses-permission&gt;</span><br></pre></td></tr></table></figure>
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Android-学习笔记之SharedPreference/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/Android-学习笔记之SharedPreference/" class="post-title-link" itemprop="url">Android 学习笔记之SharedPreference</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:10:39 / 修改时间：01:11:22" itemprop="dateCreated datePublished" datetime="2019-05-16T01:10:39+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="Android-学习笔记之SharedPreference"><a href="#Android-学习笔记之SharedPreference" class="headerlink" title="Android 学习笔记之SharedPreference"></a>Android 学习笔记之SharedPreference</h1><h2 id="SharedPreference作为android常用的四种存储方式之一，在轻量级的使用中比较常见"><a href="#SharedPreference作为android常用的四种存储方式之一，在轻量级的使用中比较常见" class="headerlink" title="SharedPreference作为android常用的四种存储方式之一，在轻量级的使用中比较常见"></a>SharedPreference作为android常用的四种存储方式之一，在轻量级的使用中比较常见</h2><p>创建、获取sharedpreference</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SharedPreferences myPreference;</span><br><span class="line">myPreference = getSharedPreferences(<span class="string">"myPreference"</span>, Context.MODE_PRIVATE);</span><br></pre></td></tr></table></figure>
+
+<p>写入数据</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">SharedPreferences.Editor editor = myPreferences.edit();</span><br><span class="line">String userIfo = <span class="string">"abc"</span>;</span><br><span class="line">editor.putString(<span class="string">"userIfo"</span>, userIfo);</span><br><span class="line"></span><br><span class="line">editor.apply();<span class="comment">//editor.commit()</span></span><br></pre></td></tr></table></figure>
+
+<p>可放入的数据类型有如下所示<br><img src="https://img2018.cnblogs.com/blog/1510236/201811/1510236-20181101203448437-990519663.png" alt></p>
+<p>读数据</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">myPreference = getSharedPreferences(<span class="string">"myPreference"</span>, Context.MODE_PRIVATE);</span><br><span class="line">String userIfo = myPreference.getStringSet(<span class="string">"userIfo"</span>, <span class="string">" "</span>);<span class="comment">//第二个参数为读取不成功时默认值</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="但是这样对对象的存储并不方便，我在网上又get到可以使用Gson框架将对象数据转换为String进行存储"><a href="#但是这样对对象的存储并不方便，我在网上又get到可以使用Gson框架将对象数据转换为String进行存储" class="headerlink" title="但是这样对对象的存储并不方便，我在网上又get到可以使用Gson框架将对象数据转换为String进行存储"></a>但是这样对对象的存储并不方便，我在网上又get到可以使用Gson框架将对象数据转换为String进行存储</h3><p>需要在build.gradle配置文件中添加如下代码</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">dependencies &#123;</span><br><span class="line">	implementation 'com.google.code.gson:gson:2.8.5'</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Gson 进行 转换</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">User user = <span class="keyword">new</span> User();</span><br><span class="line">Gson gson = <span class="keyword">new</span> Gson();</span><br><span class="line">String jsonStr = gson.toJson(user); <span class="comment">// User对象转换为String</span></span><br><span class="line">User user_1 = gson.fromJson(jisonStr, User.class) <span class="comment">//String转换为User</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="所以也能够在SharedPreference中借助putStringSet存储多个对象数据"><a href="#所以也能够在SharedPreference中借助putStringSet存储多个对象数据" class="headerlink" title="所以也能够在SharedPreference中借助putStringSet存储多个对象数据"></a>所以也能够在SharedPreference中借助putStringSet存储多个对象数据</h3><h3 id="但是并不建议这样做，SharedPreference只适用于存储体量较小的数据，否则极易造成运行卡顿掉帧等"><a href="#但是并不建议这样做，SharedPreference只适用于存储体量较小的数据，否则极易造成运行卡顿掉帧等" class="headerlink" title="但是并不建议这样做，SharedPreference只适用于存储体量较小的数据，否则极易造成运行卡顿掉帧等"></a>但是并不建议这样做，SharedPreference只适用于存储体量较小的数据，否则极易造成运行卡顿掉帧等</h3><p>存储</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> SharedPreferences myPreference;</span><br><span class="line"></span><br><span class="line">user = <span class="keyword">new</span> User();</span><br><span class="line">user1 = <span class="keyword">new</span> User(<span class="string">"abc"</span>,<span class="string">"123"</span>,<span class="keyword">true</span>);</span><br><span class="line">myPreferences = getSharedPreferences(<span class="string">"myPreference"</span>, Context.MODE_PRIVATE);</span><br><span class="line">SharedPreferences.Editor editor = myPreferences.edit();</span><br><span class="line">Gson gson = <span class="keyword">new</span> Gson();</span><br><span class="line">String jsonStr = gson.toJson(user);</span><br><span class="line">String jsonStr1 = gson.toJson(user1);</span><br><span class="line">Set&lt;String&gt; userSet = <span class="keyword">new</span> HashSet&lt;String&gt;();</span><br><span class="line">userSet.add(jsonStr);</span><br><span class="line">userSet.add(jsonStr1);</span><br><span class="line">editor.putStringSet(<span class="string">"userIfo"</span>, userSet);</span><br><span class="line">editor.apply();</span><br></pre></td></tr></table></figure>
+
+<p>读取</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> SharedPreferences myPreference;</span><br><span class="line"></span><br><span class="line">myPreference = getSharedPreferences(<span class="string">"myPreference"</span>, Context.MODE_PRIVATE);</span><br><span class="line">Set&lt;String&gt; set = <span class="keyword">new</span> HashSet&lt;String&gt;();</span><br><span class="line">Set userSet = myPreference.getStringSet(<span class="string">"userIfo"</span>,set);</span><br><span class="line"><span class="keyword">if</span>(userSet.size() == <span class="number">0</span>)&#123;</span><br><span class="line">    System.out.println(<span class="string">"用户未登陆过"</span>);</span><br><span class="line">    user = <span class="keyword">new</span> User();</span><br><span class="line">&#125;<span class="keyword">else</span>&#123;</span><br><span class="line">    String[] data = (String[]) userSet.toArray(<span class="keyword">new</span> String[userSet.size()]);</span><br><span class="line">    <span class="keyword">for</span>(String uu : data)&#123;</span><br><span class="line">        Gson gson = <span class="keyword">new</span> Gson();</span><br><span class="line">        user = gson.fromJson(uu, User.class);</span><br><span class="line">        System.out.println(user.getUserName());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Notepad-实现自动格式化/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/Notepad-实现自动格式化/" class="post-title-link" itemprop="url">Notepad++ 实现自动格式化</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:09:31 / 修改时间：01:10:01" itemprop="dateCreated datePublished" datetime="2019-05-16T01:09:31+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>#Notepad++64位  安装 NppAStyle</p>
+<h2 id="今天在使用notepad-时想实现代码的自动格式化format"><a href="#今天在使用notepad-时想实现代码的自动格式化format" class="headerlink" title="今天在使用notepad++时想实现代码的自动格式化format"></a>今天在使用notepad++时想实现代码的自动格式化format</h2><p>搜索发现有notepad++有插件NppAStyle支持大部分主流编程语言的自动格式化。</p>
+<p>因为我的notepad++是64位版本的，而notepad官网提供的这个插件（好久没更新了）是32位的所以用不了</p>
+<p>不过在github上是可以直接下载的，32位64位都有</p>
+<p>##<a href="https://github.com/ywx/NppAStyle/releases" target="_blank" rel="noopener">NppAStyle下载地址</a><br>下载下来将dll文件放到notepad++的plugin文件夹下，重启notepad++即可使用了233</p>
+<p>嗯，感觉用起来就很爽。</p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Android-学习笔记之-Intent-隐式/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/Android-学习笔记之-Intent-隐式/" class="post-title-link" itemprop="url">Android 学习笔记之 Intent 隐式</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 01:07:56 / 修改时间：01:08:46" itemprop="dateCreated datePublished" datetime="2019-05-16T01:07:56+08:00">2019-05-16</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+
+          
+            
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>##隐式intent</p>
+<p>###xml</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!--在意图过滤器中--&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">intent-filter</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">action</span> <span class="attr">android:name</span>=<span class="string">"android.intent."</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">category</span> <span class="attr">android:name</span>=<span class="string">"android.intent.category.DEFAULT"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">data</span> <span class="attr">android:mimeType</span>=<span class="string">"application/person"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">data</span> <span class="attr">android:scheme</span>=<span class="string">""</span></span></span><br><span class="line"><span class="tag">          <span class="attr">android:host</span>=<span class="string">""</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">intent-filter</span>&gt;</span></span><br><span class="line"><span class="comment">&lt;!--android:action</span></span><br><span class="line"><span class="comment">category</span></span><br><span class="line"><span class="comment">URI和数据类型 --&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>一个android(理解为匹配机制)中可以定义0-1个action，0-n个category， 0-1个data</p>
+<p>一个intent-filter中可以定义多个action，category，data</p>
+<p>###MainActivity 中</p>
+<p>1.setAction</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent();  </span><br><span class="line">intent.setAction(<span class="string">"abcdefg"</span>);  </span><br><span class="line">startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p>2.构造方法直接设置</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent(<span class="string">"abcdefg"</span>);  </span><br><span class="line">startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p>有几点需要注意：</p>
+<p>1、 这个Activity其他应用程序也可以调用，只要使用这个Action字符串。这样应用程序之间交互就很容易了，例如手机QQ可以调用QQ空间，可以调用腾讯微博等。</p>
+<p>因为如此，为了防止应用程序之间互相影响，一般命名方式是<strong>包名+Action名</strong>，例如这里命名”abcdefg”就很不合理了，就应该改成”com.example.app016.MyTest”。</p>
+<p>2、 当然，你可以在自己的程序中调用其他程序的Action。 例如可以在自己的应用程序中调用拨号面板：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent(Intent.ACTION_DIAL);  </span><br><span class="line"><span class="comment">// 或者Intent intent = new Intent("android.intent.action.DIAL");  </span></span><br><span class="line"><span class="comment">// Intent.ACTION_DIAL是内置常量，值为"android.intent.action.DIAL"  </span></span><br><span class="line">startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p><a href="https://www.cnblogs.com/liaojie970/p/5827433.html" target="_blank" rel="noopener">参考</a></p>
+
+          
+        
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/田倩不考教资！！！mmp/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="PCM">
+      <meta itemprop="description" content="fighting">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Everthing will be OK!">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                
+                <a href="/2019/05/16/田倩不考教资！！！mmp/" class="post-title-link" itemprop="url">田倩不考教资！！！mmp</a>
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-05-16 00:12:01 / 修改时间：00:19:41" itemprop="dateCreated datePublished" datetime="2019-05-16T00:12:01+08:00">2019-05-16</time>
+            
+
+            
+              
+
               
             
           </span>
@@ -435,6 +2069,10 @@
   </section>
 
   
+  <nav class="pagination">
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+  </nav>
+
 
 
           </div>
@@ -474,7 +2112,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">1</span>
+                    <span class="site-state-item-count">11</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
