@@ -96,14 +96,17 @@
 
 
 
-  <meta property="og:type" content="article">
-<meta property="og:title" content="田倩不考教资！！！mmp">
-<meta property="og:url" content="http://yoursite.com/2019/05/16/田倩不考教资！！！mmp/index.html">
+  <meta name="description" content="##隐式intent">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android 学习笔记之 Intent 隐式">
+<meta property="og:url" content="http://yoursite.com/2019/05/16/Android-学习笔记之-Intent-隐式/index.html">
 <meta property="og:site_name" content="Everthing will be OK!">
+<meta property="og:description" content="##隐式intent">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-05-15T17:33:08.468Z">
+<meta property="og:updated_time" content="2019-05-15T17:59:47.161Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="田倩不考教资！！！mmp">
+<meta name="twitter:title" content="Android 学习笔记之 Intent 隐式">
+<meta name="twitter:description" content="##隐式intent">
 
 
 
@@ -111,7 +114,7 @@
 
   
   
-  <link rel="canonical" href="http://yoursite.com/2019/05/16/田倩不考教资！！！mmp/">
+  <link rel="canonical" href="http://yoursite.com/2019/05/16/Android-学习笔记之-Intent-隐式/">
 
 
 
@@ -121,7 +124,7 @@
   };
 </script>
 
-  <title>田倩不考教资！！！mmp | Everthing will be OK!</title>
+  <title>Android 学习笔记之 Intent 隐式 | Everthing will be OK!</title>
   
 
 
@@ -290,7 +293,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/田倩不考教资！！！mmp/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Android-学习笔记之-Intent-隐式/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="PCM">
@@ -307,7 +310,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">田倩不考教资！！！mmp
+          <h1 class="post-title" itemprop="name headline">Android 学习笔记之 Intent 隐式
 
               
             
@@ -333,7 +336,7 @@
                 
               
 
-              <time title="创建时间：2019-05-16 00:12:01 / 修改时间：01:33:08" itemprop="dateCreated datePublished" datetime="2019-05-16T00:12:01+08:00">2019-05-16</time>
+              <time title="创建时间：2019-05-16 01:07:56 / 修改时间：01:59:47" itemprop="dateCreated datePublished" datetime="2019-05-16T01:07:56+08:00">2019-05-16</time>
             
 
             
@@ -372,7 +375,29 @@
       
 
       
-        <a id="more"></a>
+        <p>##隐式intent</p>
+<a id="more"></a>
+
+<p>###xml</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!--在意图过滤器中--&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">intent-filter</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">action</span> <span class="attr">android:name</span>=<span class="string">"android.intent."</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">category</span> <span class="attr">android:name</span>=<span class="string">"android.intent.category.DEFAULT"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">data</span> <span class="attr">android:mimeType</span>=<span class="string">"application/person"</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">data</span> <span class="attr">android:scheme</span>=<span class="string">""</span></span></span><br><span class="line"><span class="tag">          <span class="attr">android:host</span>=<span class="string">""</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">intent-filter</span>&gt;</span></span><br><span class="line"><span class="comment">&lt;!--android:action</span></span><br><span class="line"><span class="comment">category</span></span><br><span class="line"><span class="comment">URI和数据类型 --&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>一个android(理解为匹配机制)中可以定义0-1个action，0-n个category， 0-1个data</p>
+<p>一个intent-filter中可以定义多个action，category，data</p>
+<p>###MainActivity 中</p>
+<p>1.setAction</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent();  </span><br><span class="line">intent.setAction(<span class="string">"abcdefg"</span>);  </span><br><span class="line">startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p>2.构造方法直接设置</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent(<span class="string">"abcdefg"</span>);  </span><br><span class="line">startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p>有几点需要注意：</p>
+<p>1、 这个Activity其他应用程序也可以调用，只要使用这个Action字符串。这样应用程序之间交互就很容易了，例如手机QQ可以调用QQ空间，可以调用腾讯微博等。</p>
+<p>因为如此，为了防止应用程序之间互相影响，一般命名方式是<strong>包名+Action名</strong>，例如这里命名”abcdefg”就很不合理了，就应该改成”com.example.app016.MyTest”。</p>
+<p>2、 当然，你可以在自己的程序中调用其他程序的Action。 例如可以在自己的应用程序中调用拨号面板：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Intent intent = <span class="keyword">new</span> Intent(Intent.ACTION_DIAL);  </span><br><span class="line"><span class="comment">// 或者Intent intent = new Intent("android.intent.action.DIAL");  </span></span><br><span class="line"><span class="comment">// Intent.ACTION_DIAL是内置常量，值为"android.intent.action.DIAL"  </span></span><br><span class="line">startActivity(intent);</span><br></pre></td></tr></table></figure>
+
+<p><a href="https://www.cnblogs.com/liaojie970/p/5827433.html" target="_blank" rel="noopener">参考</a></p>
+
       
     </div>
 
@@ -402,8 +427,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2019/05/15/hello-world/" rel="next" title="Welcome to my first blog website！">
-                <i class="fa fa-chevron-left"></i> Welcome to my first blog website！
+              <a href="/2019/05/16/田倩不考教资！！！mmp/" rel="next" title="田倩不考教资！！！mmp">
+                <i class="fa fa-chevron-left"></i> 田倩不考教资！！！mmp
               </a>
             
           </div>
@@ -412,8 +437,8 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2019/05/16/Android-学习笔记之-Intent-隐式/" rel="prev" title="Android 学习笔记之 Intent 隐式">
-                Android 学习笔记之 Intent 隐式 <i class="fa fa-chevron-right"></i>
+              <a href="/2019/05/16/Notepad-实现自动格式化/" rel="prev" title="Notepad++ 实现自动格式化">
+                Notepad++ 实现自动格式化 <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>
