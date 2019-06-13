@@ -231,6 +231,23 @@
         
         
           
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/Andoird/" rel="section"><i class="menu-item-icon fa fa-fw fa-th  /Linux/"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
           <li class="menu-item menu-item-archives">
 
     
@@ -293,7 +310,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Notepad-实现自动格式化/">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/Android学习笔记之service通信(Messenger)/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="PCM">
@@ -313,7 +330,7 @@
           <h1 class="post-title" itemprop="name headline">
                 
                 
-                <a href="/2019/05/16/Notepad-实现自动格式化/" class="post-title-link" itemprop="url">Notepad++ 实现自动格式化</a>
+                <a href="/2019/05/16/Android学习笔记之service通信(Messenger)/" class="post-title-link" itemprop="url">Android学习笔记之service通信（Messenger）</a>
               
             
           </h1>
@@ -338,12 +355,24 @@
                 
               
 
-              <time title="创建时间：2019-05-16 01:09:31 / 修改时间：01:32:21" itemprop="dateCreated datePublished" datetime="2019-05-16T01:09:31+08:00">2019-05-16</time>
+              <time title="创建时间：2019-05-16 01:09:31" itemprop="dateCreated datePublished" datetime="2019-05-16T01:09:31+08:00">2019-05-16</time>
             
 
             
               
 
+              
+                
+                <span class="post-meta-divider">|</span>
+                
+
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-calendar-check-o"></i>
+                </span>
+                
+                  <span class="post-meta-item-text">更新于</span>
+                
+                <time title="修改时间：2019-05-21 19:42:15" itemprop="dateModified" datetime="2019-05-21T19:42:15+08:00">2019-05-21</time>
               
             
           </span>
@@ -361,8 +390,8 @@
                 </span>
             
                 <span class="post-meta-item-text">评论数：</span>
-                <a href="/2019/05/16/Notepad-实现自动格式化/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count valine-comment-count" data-xid="/2019/05/16/Notepad-实现自动格式化/" itemprop="commentCount"></span>
+                <a href="/2019/05/16/Android学习笔记之service通信(Messenger)/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/05/16/Android学习笔记之service通信(Messenger)/" itemprop="commentCount"></span>
                 </a>
               </span>
             
@@ -391,11 +420,19 @@
 
       
         
-          <p>#Notepad++64位  安装 NppAStyle</p>
+          <p>1、activity通过bindService方法建立与service的连接，然后使用sMessenger向ServerObserverService发送message</p>
+<p>2、ServerObserverService继承 service</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> MyHandler cMeeeengerHandler = <span class="keyword">new</span> MyHandler();</span><br><span class="line"><span class="keyword">private</span> Messenger sMessenger = <span class="keyword">new</span> Messenger( cMeeeengerHandler);)</span><br></pre></td></tr></table></figure>
+
+<p>3、重写service里的onBind方法，service里的sMessenger得到IBinder。在与之绑定的activity的onServiceConnected方法里使用这个IBinder来实例化activity里的sMessenger。使用此sMessenger向service发送message。(message通过replyto指定了回应的Messenger 即cMessenger)</p>
+<p>4、这时serive的sMessenger即有了message信息，又sMessenger是通过重写了handleMessage的Handler来建立的。故handleMessage可以对message进行处理。</p>
+<p>5、service通过handler里的handleMessage处理得到的message，</p>
+<p>(这个message告诉了回应的Messenger赋值给cMessenger)</p>
+<p>产生回应的Message m，通过cMessenger发送给activity。</p>
           <!--noindex-->
           
             <div class="post-button text-center">
-              <a class="btn" href="/2019/05/16/Notepad-实现自动格式化/#more" rel="contents">
+              <a class="btn" href="/2019/05/16/Android学习笔记之service通信(Messenger)/#more" rel="contents">
                 阅读全文 &raquo;
               </a>
             </div>
@@ -602,161 +639,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/05/16/田倩不考教资！！！mmp/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="PCM">
-      <meta itemprop="description" content="fighting">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Everthing will be OK!">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                
-                <a href="/2019/05/16/田倩不考教资！！！mmp/" class="post-title-link" itemprop="url">田倩不考教资！！！mmp</a>
-              
-            
-          </h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-
-            
-            
-            
-
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-
-              
-                
-              
-
-              <time title="创建时间：2019-05-16 00:12:01 / 修改时间：01:33:08" itemprop="dateCreated datePublished" datetime="2019-05-16T00:12:01+08:00">2019-05-16</time>
-            
-
-            
-              
-
-              
-            
-          </span>
-
-          
-
-          
-            
-            
-              
-              <span class="post-comments-count">
-                <span class="post-meta-divider">|</span>
-                <span class="post-meta-item-icon">
-                  <i class="fa fa-comment-o"></i>
-                </span>
-            
-                <span class="post-meta-item-text">评论数：</span>
-                <a href="/2019/05/16/田倩不考教资！！！mmp/#comments" itemprop="discussionUrl">
-                  <span class="post-comments-count valine-comment-count" data-xid="/2019/05/16/田倩不考教资！！！mmp/" itemprop="commentCount"></span>
-                </a>
-              </span>
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <a id="more"></a>
-          
-        
-      
-    </div>
-
-    
-
-    
-    
-    
-
-    
-
-    
-      
-    
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -803,7 +685,7 @@
                 
                   <a href="/archives/">
                 
-                    <span class="site-state-item-count">13</span>
+                    <span class="site-state-item-count">12</span>
                     <span class="site-state-item-name">日志</span>
                   </a>
                 </div>
